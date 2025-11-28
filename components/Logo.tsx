@@ -14,18 +14,20 @@ const Logo: React.FC<LogoProps> = ({ className = "", size = 48 }) => {
          xmlns="http://www.w3.org/2000/svg"
          className="w-full h-full drop-shadow-md"
        >
-         <rect width="100" height="100" rx="24" fill="url(#logo-grad)" />
-         {/* M estilizado */}
-         <path d="M30 70V35L50 55L70 35V70" stroke="white" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
-         {/* Ponto de conexão neural/célula acima */}
-         <circle cx="50" cy="25" r="5" fill="white" />
+         {/* Fundo Laranja #EA580C */}
+         <rect width="100" height="100" rx="20" fill="#EA580C" />
          
-         <defs>
-           <linearGradient id="logo-grad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-             <stop stopColor="#EA580C" />
-             <stop offset="1" stopColor="#EA580C" />
-           </linearGradient>
-         </defs>
+         {/* M Branco */}
+         <path 
+           d="M28 70V32L50 54L72 32V70" 
+           stroke="white" 
+           strokeWidth="9" 
+           strokeLinecap="round" 
+           strokeLinejoin="round" 
+         />
+         
+         {/* Ponto Branco */}
+         <circle cx="50" cy="18" r="6" fill="white" />
        </svg>
     </div>
   );
