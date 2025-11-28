@@ -22,8 +22,8 @@ const Logo: React.FC<LogoProps> = ({ className = "", size = 48 }) => {
          
          <defs>
            <linearGradient id="logo-grad" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-             <stop stopColor="#F87A14" />
-             <stop offset="1" stopColor="#ea580c" />
+             <stop stopColor="#EA580C" />
+             <stop offset="1" stopColor="#EA580C" />
            </linearGradient>
          </defs>
        </svg>
