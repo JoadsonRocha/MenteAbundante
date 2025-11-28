@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { DailyTask, DayPlan, BeliefEntry } from '../types';
 import { INITIAL_TASKS, SEVEN_DAY_PLAN } from '../constants';
 
@@ -10,7 +10,7 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 // Verifica se as credenciais existem para decidir qual banco usar
 const hasSupabase = SUPABASE_URL && SUPABASE_KEY;
 
-const supabase = hasSupabase 
+export const supabase: SupabaseClient | null = hasSupabase 
   ? createClient(SUPABASE_URL, SUPABASE_KEY) 
   : null;
 
