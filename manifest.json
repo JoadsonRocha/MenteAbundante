@@ -1,7 +1,7 @@
 {
-  "name": "Mente Abundante e Vencedora",
-  "short_name": "MenteApp",
-  "start_url": "/",
+  "name": "MindShift",
+  "short_name": "MindShift",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#f59e0b",

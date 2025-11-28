@@ -17,11 +17,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": [
-    "node_modules",
-    "**/* copy.*",
-    "**/* copy/**",
-    "**/components copy/**",
-    "**/services copy/**"
-  ]
+  "exclude": ["node_modules"]
 }

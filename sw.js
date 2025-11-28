@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mente-abundante-v1';
+const CACHE_NAME = 'mente-abundante-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -6,23 +6,25 @@ const ASSETS_TO_CACHE = [
   '/manifest.json'
 ];
 
-// Instalação do Service Worker
+// Instalação: Cachear arquivos estáticos críticos
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
+      console.log('SW: Caching core assets');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
   self.skipWaiting();
 });
 
-// Ativação e limpeza de caches antigos
+// Ativação: Limpar caches antigos
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('SW: Clearing old cache', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -32,31 +34,29 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim();
 });
 
-// Interceptação de requisições (Estratégia: Network First, fallback to Cache)
+// Fetch: Estratégia Stale-While-Revalidate para navegação e Cache-First para imagens/fontes
 self.addEventListener('fetch', (event) => {
-  // Não cachear requisições para a API do Google GenAI ou Supabase para garantir dados frescos
+  // Ignorar API calls (Supabase/Google AI) - gerenciado pelo database.ts
   if (event.request.url.includes('googleapis') || event.request.url.includes('supabase')) {
     return;
   }
 
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Se a resposta for válida, clonamos e armazenamos no cache para uso futuro
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
+    caches.match(event.request).then((cachedResponse) => {
+      // Se achou no cache, retorna. Mas em background, busca versão nova.
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
         }
+        return networkResponse;
+      }).catch(() => {
+        // Se falhar a rede (offline), não faz nada, pois o cachedResponse já foi retornado se existir
+      });
 
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-
-        return response;
-      })
-      .catch(() => {
-        // Se falhar (offline), tenta buscar no cache
-        return caches.match(event.request);
-      })
+      return cachedResponse || fetchPromise;
+    })
   );
 });

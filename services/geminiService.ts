@@ -55,3 +55,30 @@ export const chatWithCoach = async (history: string[], message: string): Promise
     return "Erro de conexão.";
   }
 };
+
+export const generateGuidedAudio = async (text: string): Promise<string | null> => {
+  if (!process.env.API_KEY) return null;
+
+  try {
+    // Usando o modelo específico de TTS do Gemini
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text: text }] }],
+      config: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          voiceConfig: {
+            // 'Kore' é uma voz geralmente calma e adequada para guias
+            prebuiltVoiceConfig: { voiceName: 'Kore' },
+          },
+        },
+      },
+    });
+
+    // Retorna a string base64 do áudio
+    return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || null;
+  } catch (e) {
+    console.error("Erro ao gerar áudio:", e);
+    return null;
+  }
+};
