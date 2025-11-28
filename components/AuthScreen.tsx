@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../services/database';
 import { Loader2, Mail, Lock, ArrowRight, UserPlus, LogIn, AlertCircle, CheckCircle } from 'lucide-react';
+import Logo from './Logo';
 
 const AuthScreen: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -42,9 +43,8 @@ const AuthScreen: React.FC = () => {
         
         // Verifica se o login foi automático ou se precisa confirmar email
         if (data.session) {
-           // Login automático ocorreu (email confirm off), o App.tsx vai redirecionar
+           // Login automático ocorreu
         } else {
-           // Feedback visual e troca para aba de login
            setSuccessMessage("Conta criada com sucesso! Verifique seu email para confirmar ou faça login.");
            setIsLogin(true);
         }
@@ -60,25 +60,28 @@ const AuthScreen: React.FC = () => {
     setIsLogin(loginMode);
     setError(null);
     setSuccessMessage(null);
-    // Limpar inputs ao trocar de aba para melhor UX
     setEmail('');
     setPassword('');
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-orange-200 rounded-full blur-[120px] opacity-30"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-emerald-200 rounded-full blur-[120px] opacity-30"></div>
+
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 z-10">
         
         {/* Header Visual */}
         <div className="bg-slate-900 p-8 text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#F87A14] rounded-full blur-[60px] opacity-20 transform translate-x-1/2 -translate-y-1/2"></div>
           
-          <div className="relative z-10">
-            <div className="w-16 h-16 bg-[#F87A14] rounded-2xl mx-auto flex items-center justify-center text-white text-2xl font-bold mb-4 shadow-lg shadow-orange-500/20">
-              M
+          <div className="relative z-10 flex flex-col items-center">
+            <div className="mb-4 shadow-lg shadow-orange-500/20 rounded-3xl">
+              <Logo size={72} />
             </div>
             <h1 className="text-2xl font-bold text-white mb-2">MindShift</h1>
-            <p className="text-slate-400 text-sm">Mudança de mentalidade.</p>
+            <p className="text-slate-400 text-sm">Mentalidade Abundante & Vitoriosa</p>
           </div>
         </div>
 

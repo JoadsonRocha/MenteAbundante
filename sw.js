@@ -1,12 +1,11 @@
-const CACHE_NAME = 'mente-abundante-v2';
+const CACHE_NAME = 'mindshift-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/index.tsx',
   '/manifest.json'
 ];
 
-// Instalação: Cachear arquivos estáticos críticos
+// Instalação
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -17,7 +16,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Ativação: Limpar caches antigos
+// Ativação e Limpeza
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -34,29 +33,44 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim();
 });
 
-// Fetch: Estratégia Stale-While-Revalidate para navegação e Cache-First para imagens/fontes
+// Fetch com Estratégia de Fallback para SPA
 self.addEventListener('fetch', (event) => {
-  // Ignorar API calls (Supabase/Google AI) - gerenciado pelo database.ts
-  if (event.request.url.includes('googleapis') || event.request.url.includes('supabase')) {
+  // Ignorar requisições externas (API, Supabase, Google Fonts, etc)
+  if (!event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
+  // Ignorar API calls locais se houver
+  if (event.request.url.includes('/api/')) {
+    return;
+  }
+
+  // Estratégia para Navegação (HTML): Network First, depois Cache, depois Fallback para index.html
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => {
+          return caches.match(event.request)
+            .then((cachedResponse) => {
+              if (cachedResponse) return cachedResponse;
+              // CRUCIAL: Retorna index.html se não conseguir carregar a rota (SPA Navigation Fallback)
+              return caches.match('/index.html');
+            });
+        })
+    );
+    return;
+  }
+
+  // Estratégia para Assets (JS, CSS, Imagens): Cache First, depois Network
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      // Se achou no cache, retorna. Mas em background, busca versão nova.
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return networkResponse;
-      }).catch(() => {
-        // Se falhar a rede (offline), não faz nada, pois o cachedResponse já foi retornado se existir
+      return cachedResponse || fetch(event.request).then((networkResponse) => {
+        return caches.open(CACHE_NAME).then((cache) => {
+          // Cache dinâmico de novos arquivos
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
+        });
       });
-
-      return cachedResponse || fetchPromise;
     })
   );
 });

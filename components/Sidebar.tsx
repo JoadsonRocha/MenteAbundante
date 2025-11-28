@@ -3,6 +3,7 @@ import { LayoutDashboard, Brain, Calendar, CheckSquare, Eye, MessageSquareText, 
 import { Tab } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../services/database';
+import Logo from './Logo';
 
 interface SidebarProps {
   activeTab: Tab;
@@ -81,25 +82,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
         ></div>
       )}
 
-      {/* Sidebar Container 
-          ALTERAÇÃO: 
-          - Mobile: right-0 (direita), border-l (borda na esquerda)
-          - Desktop: lg:left-0 (esquerda), lg:border-r (borda na direita)
-          - Transform: translate-x-full (esconde p/ direita) vs translate-x-0
-      */}
+      {/* Sidebar Container */}
       <div className={`fixed lg:sticky top-0 h-screen bg-white w-64 z-50 transition-transform duration-300 ease-in-out flex flex-col 
         right-0 lg:right-auto lg:left-0 
         border-l lg:border-l-0 lg:border-r border-slate-200
         ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
         
         <div className="p-6 flex items-center justify-center shrink-0 relative">
-          {/* Logo "M" isolado e maior */}
-          <div className="w-12 h-12 bg-[#F87A14] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-orange-200 text-2xl font-bold">
-            M
-          </div>
+          {/* Logo Nova */}
+          <Logo size={56} />
           
           <button onClick={toggleSidebar} className="absolute left-6 lg:hidden text-slate-400 hover:text-[#F87A14] transition-colors">
-            {/* Botão de fechar agora fica na esquerda da sidebar pois a sidebar está na direita */}
             <X size={24} />
           </button>
         </div>

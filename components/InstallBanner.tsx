@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Download, X } from 'lucide-react';
+import Logo from './Logo';
 
 const InstallBanner: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -59,8 +60,8 @@ const InstallBanner: React.FC = () => {
     <div className="fixed bottom-0 left-0 right-0 p-4 z-50 animate-slide-up">
       <div className="max-w-md mx-auto bg-slate-900 text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between border border-slate-700">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
-            <span className="font-bold text-lg">M</span>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
+            <Logo size={40} />
           </div>
           <div>
             <h4 className="font-bold text-sm">Instalar MindShift</h4>

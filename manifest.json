@@ -1,7 +1,8 @@
 {
-  "name": "MindShift",
+  "name": "MindShift - Mente Abundante",
   "short_name": "MindShift",
-  "start_url": "./",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#f59e0b",
