@@ -18,6 +18,7 @@ import GratitudeJournal from './components/GratitudeJournal';
 import FeedbackForm from './components/FeedbackForm';
 import SmartPlanner from './components/SmartPlanner';
 import SupportAgent from './components/SupportAgent';
+import AnxietyControl from './components/AnxietyControl'; 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
@@ -141,6 +142,10 @@ const AppContent: React.FC = () => {
     await signOut();
   };
 
+  const handleNavigateToPlanner = () => {
+    setActiveTab('smart_planner');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -163,7 +168,7 @@ const AppContent: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard onChangeTab={setActiveTab} />;
+        return <Dashboard onChangeTab={setActiveTab} onOpenAnxiety={() => setActiveTab('anxiety')} />;
       case 'stats':
         return <ProgressStats />;
       case 'reprogram':
@@ -178,7 +183,7 @@ const AppContent: React.FC = () => {
         return <VisualizationTool />;
       case 'coach':
         return <AICoach />;
-      case 'support': // NOVO
+      case 'support':
         return <SupportAgent />;
       case 'gratitude':
         return <GratitudeJournal />;
@@ -186,10 +191,12 @@ const AppContent: React.FC = () => {
         return <UserProfileComponent />;
       case 'feedback':
         return <FeedbackForm />;
+      case 'anxiety':
+        return <AnxietyControl onClose={() => setActiveTab('dashboard')} onNavigateToPlanner={handleNavigateToPlanner} />;
       case 'about':
         return <About navigateTo={setActiveTab} />;
       default:
-        return <Dashboard onChangeTab={setActiveTab} />;
+        return <Dashboard onChangeTab={setActiveTab} onOpenAnxiety={() => setActiveTab('anxiety')} />;
     }
   };
 
@@ -243,7 +250,7 @@ const AppContent: React.FC = () => {
         {/* Content Area */}
         <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-[calc(100vh-64px)] lg:min-h-screen pb-20">
           {/* Botão Voltar Universal (Mobile e Desktop) */}
-          {activeTab !== 'dashboard' && (
+          {activeTab !== 'dashboard' && activeTab !== 'anxiety' && (
             <button
               onClick={() => setActiveTab('dashboard')}
               className="flex items-center gap-2 mb-6 mt-2 lg:mt-6 text-slate-400 hover:text-[#F87A14] transition-colors group w-fit"
@@ -258,7 +265,7 @@ const AppContent: React.FC = () => {
           {renderContent()}
         </div>
 
-        {/* PWA Install Banner (Rodapé) - Opcional se já tem no menu, mas bom manter */}
+        {/* PWA Install Banner (Rodapé) */}
         <InstallBanner installAction={installApp} deferredPrompt={deferredPrompt} />
 
         {/* Modals */}

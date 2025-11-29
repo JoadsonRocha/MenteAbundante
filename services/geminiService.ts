@@ -274,3 +274,57 @@ export const generateActionPlan = async (goal: string, timeframe: string): Promi
     throw new Error("Não foi possível criar o plano. Tente ser mais específico.");
   }
 };
+
+// --- NOVO: GERADOR DE MEDITAÇÃO SOS OTIMIZADO (5 MINUTOS) ---
+export const generateMeditationScript = async (): Promise<{ title: string, steps: { label: string, text: string, pauseSeconds: number }[] } | null> => {
+  if (!process.env.API_KEY) return null;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `Atue como um terapeuta especialista em ansiedade e mindfulness.
+      Crie um roteiro de meditação guiada INÉDITO para alívio de ansiedade.
+      
+      CONTEXTO: Data atual ${new Date().toISOString()} (Use isso para variar o conteúdo).
+      REQUISITO FUNDAMENTAL: A sessão deve durar NO MÍNIMO 5 MINUTOS.
+      Para isso, gere textos longos nas etapas intermediárias e pausas estratégicas.
+
+      ESTRUTURA OBRIGATÓRIA (5 Etapas):
+      
+      1. INTRODUÇÃO RÁPIDA (Máx 40 palavras): Foco apenas na respiração inicial. (Esta etapa deve ser curta para o áudio carregar instantaneamente). PauseSeconds: 5.
+      
+      2. RELAXAMENTO PROFUNDO (Aprox 130-150 palavras): Escaneamento corporal detalhado, soltando tensões dos pés à cabeça. Use ritmo lento. PauseSeconds: 20.
+      
+      3. APROFUNDAMENTO (Aprox 130-150 palavras): Técnica de visualização (lugar seguro, luz, natureza) ou mindfulness. PauseSeconds: 25.
+      
+      4. REPROGRAMAÇÃO E ANCORAGEM (Aprox 120 palavras): Afirmações de segurança, controle e paz. PauseSeconds: 20.
+      
+      5. RETORNO SUAVE (Aprox 80 palavras): Volta gradual à consciência, mantendo a calma. PauseSeconds: 5.
+
+      IMPORTANTE:
+      - O conteúdo deve ser SEMPRE NOVO e ÚNICO. Use metáforas diferentes a cada geração.
+      - Texto em primeira pessoa ("Eu guio você") ou direta ("Você sente").
+      - Tom de voz: Lento, calmo, hipnótico, acolhedor.
+
+      Retorne APENAS um JSON válido:
+      {
+        "title": "Título Criativo da Sessão",
+        "steps": [
+          { "label": "Respiração", "text": "...", "pauseSeconds": 5 },
+          ...
+        ]
+      }`,
+      config: {
+        responseMimeType: "application/json",
+        temperature: 1.0 // Alta temperatura para garantir que seja sempre diferente
+      }
+    });
+
+    const text = response.text;
+    if (!text) return null;
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Erro script meditação:", error);
+    return null;
+  }
+};

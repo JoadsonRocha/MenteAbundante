@@ -1,16 +1,23 @@
 import React from 'react';
-import { Target, Brain, Trophy, ChevronRight, MessageSquareText, Calendar, Heart, Rocket } from 'lucide-react';
+import { Target, Brain, Trophy, ChevronRight, MessageSquareText, Calendar, Heart, Rocket, Wind, AlertCircle } from 'lucide-react';
 import { QUOTES } from '../constants';
 
 interface DashboardProps {
   onChangeTab: (tab: any) => void;
+  onOpenAnxiety: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => {
   const randomQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+
+  // Helper para abrir a ansiedade via tab (nova lógica unificada)
+  const handleAnxietyClick = () => {
+     onChangeTab('anxiety');
+  };
 
   return (
     <div className="space-y-8 animate-fade-in">
+      
       {/* Hero Section */}
       <div className="relative bg-gradient-to-r from-slate-900 to-slate-800 text-white p-6 md:p-12 rounded-3xl overflow-hidden shadow-xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[#F87A14] rounded-full blur-[80px] opacity-20 transform translate-x-1/2 -translate-y-1/2"></div>
@@ -33,7 +40,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
               onClick={() => onChangeTab('plan')}
               className="bg-white/10 text-white px-5 py-2.5 md:px-6 md:py-3 text-sm md:text-base rounded-xl font-semibold hover:bg-white/20 transition-colors backdrop-blur-sm"
             >
-              Plano de 7 Dias
+              Plano 7 Dias
             </button>
           </div>
         </div>
@@ -48,7 +55,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
         <div className="mt-4 w-10 md:w-12 h-1 bg-[#F87A14] mx-auto rounded-full"></div>
       </div>
 
-      {/* Features Grid - Layout Ajustado */}
+      {/* Features Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         
         {/* 1. AI Coach */}
@@ -75,7 +82,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           <p className="text-slate-600 text-xs md:text-sm">Transforme crenças limitantes em pensamentos de poder.</p>
         </div>
 
-        {/* 3. Planejador IA (NOVO) */}
+        {/* 3. Planejador IA */}
         <div 
           onClick={() => onChangeTab('smart_planner')}
           className="bg-rose-50 p-5 md:p-6 rounded-2xl border border-rose-100 cursor-pointer hover:shadow-md transition-all group"
@@ -86,8 +93,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">Planejador IA</h3>
           <p className="text-slate-600 text-xs md:text-sm">Defina metas e receba um plano de ação passo a passo.</p>
         </div>
+        
+        {/* 4. Ansiedade SOS (NOVO - Depois do Planejador) */}
+        <div 
+          onClick={handleAnxietyClick}
+          className="bg-slate-100 p-5 md:p-6 rounded-2xl border border-slate-200 cursor-pointer hover:shadow-md hover:bg-slate-200 transition-all group"
+        >
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
+            <Wind size={20} className="md:w-6 md:h-6" />
+          </div>
+          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2 flex items-center gap-2">
+            Ansiedade SOS <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded uppercase tracking-wider">Novo</span>
+          </h3>
+          <p className="text-slate-600 text-xs md:text-sm">Áudio guiado imediato para recuperar seu equilíbrio.</p>
+        </div>
 
-        {/* 4. Plano 7 Dias */}
+        {/* 5. Plano 7 Dias */}
         <div 
           onClick={() => onChangeTab('plan')}
           className="bg-purple-50 p-5 md:p-6 rounded-2xl border border-purple-100 cursor-pointer hover:shadow-md transition-all group"
@@ -99,7 +120,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           <p className="text-slate-600 text-xs md:text-sm">Roteiro prático para destravar sua mente em uma semana.</p>
         </div>
 
-        {/* 5. Checklist Diário */}
+        {/* 6. Checklist Diário */}
         <div 
           onClick={() => onChangeTab('checklist')}
           className="bg-amber-50 p-5 md:p-6 rounded-2xl border border-amber-100 cursor-pointer hover:shadow-md transition-all group"
@@ -111,7 +132,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           <p className="text-slate-600 text-xs md:text-sm">Hábitos de sucesso para construir consistência diária.</p>
         </div>
 
-        {/* 6. Visualização */}
+        {/* 7. Visualização */}
         <div 
           onClick={() => onChangeTab('visualization')}
           className="bg-indigo-50 p-5 md:p-6 rounded-2xl border border-indigo-100 cursor-pointer hover:shadow-md transition-all group"
@@ -123,7 +144,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           <p className="text-slate-600 text-xs md:text-sm">Exercício guiado de 2 minutos para ancorar o sucesso.</p>
         </div>
 
-        {/* 7. Gratidão */}
+        {/* 8. Gratidão */}
         <div 
           onClick={() => onChangeTab('gratitude')}
           className="bg-sky-50 p-5 md:p-6 rounded-2xl border border-sky-100 cursor-pointer hover:shadow-md transition-all group"

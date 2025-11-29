@@ -1,5 +1,5 @@
 
-export type Tab = 'dashboard' | 'reprogram' | 'plan' | 'checklist' | 'visualization' | 'coach' | 'gratitude' | 'about' | 'stats' | 'profile' | 'feedback' | 'smart_planner' | 'support';
+export type Tab = 'dashboard' | 'reprogram' | 'plan' | 'checklist' | 'visualization' | 'coach' | 'gratitude' | 'about' | 'stats' | 'profile' | 'feedback' | 'smart_planner' | 'support' | 'anxiety';
 
 export interface UserProfile {
   id?: string;
