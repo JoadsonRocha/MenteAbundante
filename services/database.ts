@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { DailyTask, DayPlan, BeliefEntry, ChatMessage, ActivityLog, UserProfile, GratitudeEntry, FeedbackEntry } from '../types';
+import { DailyTask, DayPlan, BeliefEntry, ChatMessage, ActivityLog, UserProfile, GratitudeEntry, FeedbackEntry, GoalPlan } from '../types';
 import { INITIAL_TASKS, SEVEN_DAY_PLAN } from '../constants';
 
 // --- CONFIGURAÇÃO DO SUPABASE ---
@@ -24,7 +24,8 @@ const STORAGE_KEYS = {
   CHAT: 'mente_chat',
   ACTIVITY: 'mente_activity',
   PROFILE: 'mente_profile',
-  LAST_CHECKLIST_DATE: 'mente_last_checklist_date'
+  LAST_CHECKLIST_DATE: 'mente_last_checklist_date',
+  GOAL_PLANS: 'mente_goal_plans'
 };
 
 // Helper para pegar ID do usuário atual
@@ -117,6 +118,13 @@ export const syncLocalDataToSupabase = async () => {
       if (entriesWithUser.length > 0) {
         await supabase.from('gratitude_entries').upsert(entriesWithUser);
       }
+    }
+    
+    // 6. Sync Goal Plans
+    const localGoals = JSON.parse(localStorage.getItem(STORAGE_KEYS.GOAL_PLANS) || '[]');
+    if (localGoals.length > 0) {
+       const goalsWithUser = localGoals.map((g: any) => ({ ...g, user_id: userId }));
+       await supabase.from('goal_plans').upsert(goalsWithUser);
     }
 
   } catch (e) {
@@ -450,7 +458,7 @@ export const db = {
     }
   },
 
-  // --- FEEDBACK (NOVO) ---
+  // --- FEEDBACK ---
   async saveFeedback(feedback: FeedbackEntry): Promise<void> {
     if (supabase && navigator.onLine) {
       const userId = await getCurrentUserId();
@@ -469,6 +477,60 @@ export const db = {
       }
     } else {
       throw new Error("Você precisa estar online para enviar feedback.");
+    }
+  },
+
+  // --- SMART PLANNER (NOVO) ---
+  async getGoalPlans(): Promise<GoalPlan[]> {
+    const saved = localStorage.getItem(STORAGE_KEYS.GOAL_PLANS);
+    if (saved) return JSON.parse(saved);
+
+    if (supabase && navigator.onLine) {
+       const userId = await getCurrentUserId();
+       if (userId) {
+          const { data } = await supabase.from('goal_plans').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+          if (data) {
+            localStorage.setItem(STORAGE_KEYS.GOAL_PLANS, JSON.stringify(data));
+            return data as GoalPlan[];
+          }
+       }
+    }
+    return [];
+  },
+
+  async saveGoalPlan(plan: GoalPlan): Promise<void> {
+    // Local
+    const current = await db.getGoalPlans();
+    const exists = current.find(p => p.id === plan.id);
+    let updated = [];
+    if (exists) {
+       updated = current.map(p => p.id === plan.id ? plan : p);
+    } else {
+       updated = [plan, ...current];
+    }
+    localStorage.setItem(STORAGE_KEYS.GOAL_PLANS, JSON.stringify(updated));
+
+    // Supabase
+    if (supabase && navigator.onLine) {
+      const userId = await getCurrentUserId();
+      const payload = { ...plan, user_id: userId };
+      
+      try {
+        await supabase.from('goal_plans').upsert(payload);
+      } catch (e) {
+        console.error("Erro ao salvar plano no DB", e);
+      }
+    }
+  },
+
+  async deleteGoalPlan(id: string): Promise<void> {
+    const current = await db.getGoalPlans();
+    const updated = current.filter(p => p.id !== id);
+    localStorage.setItem(STORAGE_KEYS.GOAL_PLANS, JSON.stringify(updated));
+
+    if (supabase && navigator.onLine) {
+      const userId = await getCurrentUserId();
+      await supabase.from('goal_plans').delete().eq('id', id).eq('user_id', userId);
     }
   }
 };

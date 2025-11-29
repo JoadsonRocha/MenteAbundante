@@ -1,5 +1,5 @@
 
-export type Tab = 'dashboard' | 'reprogram' | 'plan' | 'checklist' | 'visualization' | 'coach' | 'gratitude' | 'about' | 'stats' | 'profile' | 'feedback';
+export type Tab = 'dashboard' | 'reprogram' | 'plan' | 'checklist' | 'visualization' | 'coach' | 'gratitude' | 'about' | 'stats' | 'profile' | 'feedback' | 'smart_planner';
 
 export interface UserProfile {
   id?: string;
@@ -65,6 +65,24 @@ export interface FeedbackEntry {
   rating: number; // 1 a 5
   category: string; // 'sugestao', 'elogio', 'problema', 'outro'
   comment: string;
+  created_at: string;
+}
+
+// --- NOVOS TIPOS PARA O PLANEJADOR ---
+export interface GoalStep {
+  id: string;
+  text: string;
+  completed: boolean;
+  timing: string; // Ex: "Dia 1", "Semana 2"
+}
+
+export interface GoalPlan {
+  id: string;
+  user_id?: string;
+  title: string; // O Objetivo
+  timeframe: string; // O Tempo (ex: 30 dias)
+  steps: GoalStep[];
+  is_completed: boolean;
   created_at: string;
 }
 

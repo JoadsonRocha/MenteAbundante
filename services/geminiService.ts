@@ -154,3 +154,43 @@ export const generateGratitudeAffirmation = async (gratitudeText: string): Promi
     return "Obrigado por agradecer. A abundância começa aqui.";
   }
 };
+
+// --- NOVO: GERADOR DE PLANO DE AÇÃO ---
+export const generateActionPlan = async (goal: string, timeframe: string): Promise<any[]> => {
+  if (!process.env.API_KEY) throw new Error("API Key ausente");
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `O usuário tem o objetivo: "${goal}".
+      O prazo desejado é: "${timeframe}".
+
+      Sua missão:
+      Crie um plano de ação prático no formato de Checklist, dividido cronologicamente para caber nesse prazo.
+      
+      Regras:
+      1. Seja específico nas tarefas (ex: "Criar conta no Instagram" em vez de "Começar marketing").
+      2. Divida o tempo de forma lógica (ex: "Dia 1", "Semana 1", "Mês 2").
+      3. Gere entre 5 a 15 passos, dependendo da complexidade.
+      4. Retorne APENAS um JSON array válido. Sem markdown, sem texto extra.
+
+      Formato esperado do JSON:
+      [
+        { "text": "Pesquisar concorrentes", "timing": "Dia 1" },
+        { "text": "Definir identidade visual", "timing": "Semana 1" }
+      ]`,
+      config: {
+        temperature: 0.4, // Mais determinístico para seguir instruções JSON
+        responseMimeType: "application/json"
+      }
+    });
+
+    const jsonText = response.text;
+    if (!jsonText) throw new Error("Resposta vazia da IA");
+    
+    return JSON.parse(jsonText);
+  } catch (e) {
+    console.error("Erro ao gerar plano:", e);
+    throw new Error("Não foi possível criar o plano. Tente ser mais específico.");
+  }
+};

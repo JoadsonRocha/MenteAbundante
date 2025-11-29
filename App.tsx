@@ -16,6 +16,7 @@ import OnboardingTour from './components/OnboardingTour';
 import DesireModal from './components/DesireModal'; 
 import GratitudeJournal from './components/GratitudeJournal';
 import FeedbackForm from './components/FeedbackForm';
+import SmartPlanner from './components/SmartPlanner';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
@@ -38,10 +39,10 @@ const AppContent: React.FC = () => {
 
   // Efeito para Resetar Tab ao Logar e Forçar Sync
   useEffect(() => {
+    // Sempre que o usuário muda (login ou logout), forçamos o dashboard
+    setActiveTab('dashboard');
+
     if (user) {
-      // 1. Sempre redirecionar para o Dashboard ao logar/recarregar logado
-      setActiveTab('dashboard');
-      
       // 2. Forçar sincronização imediata
       syncLocalDataToSupabase();
       
@@ -134,6 +135,11 @@ const AppContent: React.FC = () => {
     setDeferredPrompt(null);
   };
 
+  const handleLogout = async () => {
+    setActiveTab('dashboard'); // Garante visualmente antes de sair
+    await signOut();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -163,6 +169,8 @@ const AppContent: React.FC = () => {
         return <BeliefReprogrammer />;
       case 'plan':
         return <SevenDayPlan />;
+      case 'smart_planner': // NOVO
+        return <SmartPlanner />;
       case 'checklist':
         return <DailyChecklist />;
       case 'visualization':
@@ -210,12 +218,23 @@ const AppContent: React.FC = () => {
               <p className="text-[10px] text-slate-500 font-medium tracking-wide">& Vitoriosa</p>
             </div>
           </div>
-          <button 
-            onClick={toggleSidebar} 
-            className="text-slate-600 hover:text-[#F87A14] bg-slate-50 p-2 rounded-lg transition-colors active:scale-95"
-          >
-            <Menu size={24} />
-          </button>
+          
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleLogout}
+              className="text-slate-400 hover:text-red-500 p-2 rounded-lg transition-colors active:scale-95"
+              title="Sair"
+            >
+              <LogOut size={20} />
+            </button>
+            
+            <button 
+              onClick={toggleSidebar} 
+              className="text-slate-600 hover:text-[#F87A14] bg-slate-50 p-2 rounded-lg transition-colors active:scale-95"
+            >
+              <Menu size={24} />
+            </button>
+          </div>
         </div>
 
         {/* Content Area */}

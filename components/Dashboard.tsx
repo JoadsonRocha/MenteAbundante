@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, Brain, Trophy, ChevronRight, MessageSquareText, Calendar, Heart } from 'lucide-react';
+import { Target, Brain, Trophy, ChevronRight, MessageSquareText, Calendar, Heart, Rocket } from 'lucide-react';
 import { QUOTES } from '../constants';
 
 interface DashboardProps {
@@ -75,7 +75,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           <p className="text-slate-600 text-xs md:text-sm">Transforme crenças limitantes em pensamentos de poder.</p>
         </div>
 
-        {/* 3. Plano 7 Dias */}
+        {/* 3. Planejador IA (NOVO) */}
+        <div 
+          onClick={() => onChangeTab('smart_planner')}
+          className="bg-rose-50 p-5 md:p-6 rounded-2xl border border-rose-100 cursor-pointer hover:shadow-md transition-all group"
+        >
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
+            <Rocket size={20} className="md:w-6 md:h-6" />
+          </div>
+          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">Planejador IA</h3>
+          <p className="text-slate-600 text-xs md:text-sm">Defina metas e receba um plano de ação passo a passo.</p>
+        </div>
+
+        {/* 4. Plano 7 Dias */}
         <div 
           onClick={() => onChangeTab('plan')}
           className="bg-purple-50 p-5 md:p-6 rounded-2xl border border-purple-100 cursor-pointer hover:shadow-md transition-all group"
@@ -87,7 +99,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           <p className="text-slate-600 text-xs md:text-sm">Roteiro prático para destravar sua mente em uma semana.</p>
         </div>
 
-        {/* 4. Checklist Diário */}
+        {/* 5. Checklist Diário */}
         <div 
           onClick={() => onChangeTab('checklist')}
           className="bg-amber-50 p-5 md:p-6 rounded-2xl border border-amber-100 cursor-pointer hover:shadow-md transition-all group"
@@ -99,7 +111,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           <p className="text-slate-600 text-xs md:text-sm">Hábitos de sucesso para construir consistência diária.</p>
         </div>
 
-        {/* 5. Visualização */}
+        {/* 6. Visualização */}
         <div 
           onClick={() => onChangeTab('visualization')}
           className="bg-indigo-50 p-5 md:p-6 rounded-2xl border border-indigo-100 cursor-pointer hover:shadow-md transition-all group"
@@ -111,7 +123,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           <p className="text-slate-600 text-xs md:text-sm">Exercício guiado de 2 minutos para ancorar o sucesso.</p>
         </div>
 
-        {/* 6. Gratidão */}
+        {/* 7. Gratidão */}
         <div 
           onClick={() => onChangeTab('gratitude')}
           className="bg-sky-50 p-5 md:p-6 rounded-2xl border border-sky-100 cursor-pointer hover:shadow-md transition-all group"
