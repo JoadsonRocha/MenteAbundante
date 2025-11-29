@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Brain, Calendar, CheckSquare, Eye, MessageSquareText, Menu, X, Info, LogOut, TrendingUp, Settings, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Brain, Calendar, CheckSquare, Eye, MessageSquareText, Menu, X, Info, LogOut, TrendingUp, Settings } from 'lucide-react';
 import { Tab } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../services/database';
@@ -115,20 +115,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
               <span>{item.label}</span>
             </button>
           ))}
-          
-          {onOpenTour && (
-            <button
-              onClick={() => {
-                onOpenTour();
-                if (window.innerWidth < 1024) toggleSidebar();
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium duration-300 text-slate-500 hover:bg-slate-50 hover:text-slate-900 hover:pl-5"
-            >
-              <HelpCircle size={20} />
-              <span>Guia Rápido</span>
-            </button>
-          )}
-
         </nav>
 
         <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0 space-y-2">

@@ -40,15 +40,12 @@ export const syncLocalDataToSupabase = async () => {
   const userId = await getCurrentUserId();
   if (!userId) return;
 
-  console.log("🔄 Iniciando sincronização em background...");
-
   try {
     // 1. Sync Tasks
     const localTasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
     if (localTasks.length > 0) {
       const tasksWithUser = localTasks.map((t: any) => ({ ...t, user_id: userId }));
-      const { error } = await supabase.from('tasks').upsert(tasksWithUser);
-      if (error) console.log("Sync info tasks:", error.message);
+      await supabase.from('tasks').upsert(tasksWithUser);
     }
 
     // 2. Sync Plan
@@ -61,10 +58,10 @@ export const syncLocalDataToSupabase = async () => {
         description: p.description,
         completed: p.completed,
         answer: p.answer,
+        completed_at: p.completed_at, // Adicionado campo de data
         user_id: userId 
       }));
-      const { error } = await supabase.from('plans').upsert(plansWithUser);
-      if (error) console.log("Sync info plan:", error.message);
+      await supabase.from('plans').upsert(plansWithUser);
     }
 
     // 3. Sync Activity Logs
@@ -73,7 +70,6 @@ export const syncLocalDataToSupabase = async () => {
        for (const log of localLogs) {
          const { data } = await supabase.from('activity_logs').select('*').eq('user_id', userId).eq('date', log.date).single();
          if (data) {
-           // Se a contagem local for diferente, atualiza (prefere a maior ou a mais recente? Vamos assumir sync da local)
            await supabase.from('activity_logs').update({ count: log.count }).eq('id', data.id);
          } else {
            await supabase.from('activity_logs').insert({ user_id: userId, date: log.date, count: log.count });
@@ -81,7 +77,27 @@ export const syncLocalDataToSupabase = async () => {
        }
     }
     
-    console.log("✅ Sincronização concluída.");
+    // 4. Sync Profile (Novo)
+    const localProfile = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILE) || 'null');
+    if (localProfile && localProfile.id === userId) {
+      const payload = {
+         id: userId,
+         full_name: localProfile.full_name,
+         mantra: localProfile.mantra,
+         imagem: localProfile.imagem,
+         statement: localProfile.statement,
+         updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase.from('profiles').upsert(payload);
+      
+      // Fallback na sincronização automática se colunas faltarem
+      if (error && (error.message?.includes('statement') || error.message?.includes('imagem'))) {
+         const { statement, imagem, ...basicPayload } = payload;
+         await supabase.from('profiles').upsert(basicPayload);
+      }
+    }
+
   } catch (e) {
     console.error("Erro na sincronização:", e);
   }
@@ -96,24 +112,43 @@ if (typeof window !== 'undefined') {
 export const db = {
   // --- PERFIL ---
   async getProfile(): Promise<UserProfile | null> {
-    const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
-    if (saved) return JSON.parse(saved);
+    const userId = await getCurrentUserId();
 
+    // 1. Tenta carregar do cache local, mas VALIDA O ID
+    const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // SEGURANÇA: Só retorna o cache se tivermos certeza que pertence ao usuário logado
+      if (userId && parsed.id === userId) {
+        return parsed;
+      }
+      // Se o ID não bater, limpa
+      if (userId && parsed.id && parsed.id !== userId) {
+        localStorage.removeItem(STORAGE_KEYS.PROFILE);
+      }
+    }
+
+    // 2. Busca do Supabase
     if (supabase && navigator.onLine) {
       try {
-        const userId = await getCurrentUserId();
         if (userId) {
           const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
           
-          if (error) {
-            console.log("Info perfil:", error.message);
-            // Se erro for de coluna, retorna null mas não quebra
-            return null;
-          }
-          
-          if (data) {
-            localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(data));
-            return data;
+          if (!error && data) {
+            // Merge: Prefere dados locais se forem mais recentes ou se DB estiver vazio em campos novos
+            const currentLocal = saved ? JSON.parse(saved) : {};
+            const finalProfile = { ...data };
+            
+            // Se local tem statement mas remoto não (ex: acabou de criar offline ou sem coluna), mantem local
+            if (currentLocal.statement && !data.statement) {
+              finalProfile.statement = currentLocal.statement;
+            }
+            if (currentLocal.imagem && !data.imagem) {
+              finalProfile.imagem = currentLocal.imagem;
+            }
+
+            localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(finalProfile));
+            return finalProfile;
           }
         }
       } catch (e) {}
@@ -122,9 +157,13 @@ export const db = {
   },
 
   async updateProfile(profile: UserProfile): Promise<void> {
-    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
+    const userId = await getCurrentUserId();
     
-    // Dispara evento para atualizar UI (Sidebar) instantaneamente
+    // Atualiza localmente
+    const profileToSave = { ...profile, id: userId || undefined };
+    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profileToSave));
+    
+    // Dispara evento UI
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('profile-updated'));
     }
@@ -132,26 +171,28 @@ export const db = {
     if (supabase && navigator.onLine) {
       (async () => {
         try {
-          const userId = await getCurrentUserId();
           if (userId) {
             const payload = {
               id: userId,
               full_name: profile.full_name,
               mantra: profile.mantra,
-              imagem: profile.imagem, // Agora usa a coluna 'imagem'
+              imagem: profile.imagem,
+              statement: profile.statement,
               updated_at: new Date().toISOString()
             };
 
             const { error } = await supabase.from('profiles').upsert(payload);
             
             if (error) {
-              console.log("Erro inicial ao salvar perfil:", error.message);
-              // Fallback: Se falhar por causa da coluna imagem inexistente
-              if (error.message?.includes('imagem') || error.code === '42703' || error.message?.includes('schema')) {
-                console.log("Tentando salvar perfil sem imagem (coluna ausente)...");
-                const { imagem, ...fallbackPayload } = payload;
-                const { error: fallbackError } = await supabase.from('profiles').upsert(fallbackPayload);
-                if (fallbackError) console.log("Erro no fallback de perfil:", fallbackError.message);
+              // Se o erro for de coluna inexistente, loga para o desenvolvedor
+              if (error.message?.includes('statement') || error.message?.includes('imagem')) {
+                 console.warn("⚠️ IMPORTANTE: Para salvar Imagem e Declaração no Banco, execute o script 'supabase_schema.sql' no Supabase.");
+                 
+                 // Fallback: Tenta salvar pelo menos o básico para não perder tudo no servidor
+                 const { statement, imagem, ...basicPayload } = payload;
+                 await supabase.from('profiles').upsert(basicPayload);
+              } else {
+                 console.error("Erro ao salvar perfil:", error.message);
               }
             }
           }
@@ -196,9 +237,8 @@ export const db = {
         try {
           const userId = await getCurrentUserId();
           const tasksToSave = userId ? tasks.map(t => ({ ...t, user_id: userId })) : tasks;
-          const { error } = await supabase.from('tasks').upsert(tasksToSave);
-          if (error) console.log("Save tasks info:", error.message);
-        } catch (e) { console.error("Error saving tasks:", e); }
+          await supabase.from('tasks').upsert(tasksToSave);
+        } catch (e) { }
       })();
     }
   },
@@ -209,11 +249,9 @@ export const db = {
   },
 
   // --- ATIVIDADES / ESTATÍSTICAS ---
-  // Substitui logActivity para definir o valor exato (melhor para checkboxes que podem ser marcados/desmarcados)
   async setActivityCount(count: number): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
     
-    // 1. Atualiza LocalStorage
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
       let logs: ActivityLog[] = saved ? JSON.parse(saved) : [];
@@ -227,7 +265,6 @@ export const db = {
       localStorage.setItem(STORAGE_KEYS.ACTIVITY, JSON.stringify(logs));
     } catch (e) { console.error(e); }
 
-    // 2. Atualiza Supabase
     if (supabase && navigator.onLine) {
       (async () => {
         try {
@@ -245,7 +282,7 @@ export const db = {
     }
   },
 
-  // Mantém para compatibilidade (adiciona ao valor atual)
+  // Mantém para compatibilidade
   async logActivity(increment: number = 1): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
     const saved = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
@@ -310,13 +347,12 @@ export const db = {
       (async () => {
         try {
           const userId = await getCurrentUserId();
-          const supabasePayload = plan.map(({ day, title, description, completed, answer }) => ({
-            day, title, description, completed, answer,
+          const supabasePayload = plan.map(({ day, title, description, completed, answer, completed_at }) => ({
+            day, title, description, completed, answer, completed_at,
             user_id: userId
           }));
-          const { error } = await supabase.from('plans').upsert(supabasePayload);
-          if (error) console.log("Save plan info:", error.message);
-        } catch (e) { console.error("Error saving plan:", e); }
+          await supabase.from('plans').upsert(supabasePayload);
+        } catch (e) { }
       })();
     }
   },
@@ -334,26 +370,12 @@ export const db = {
          let query = supabase.from('beliefs').select('*');
          
          if (userId) {
-           try {
-             // Tenta filtrar. Se falhar por schema, cai no catch.
-             const { data, error } = await query.eq('user_id', userId);
-             if (error) throw error;
-             if (data) {
-                const reversed = data.reverse();
-                localStorage.setItem(STORAGE_KEYS.BELIEFS, JSON.stringify(reversed));
-                return reversed;
-             }
-           } catch (filterError: any) {
-             if (filterError.message?.includes('user_id') || filterError.code === '42703') {
-               console.log("Aviso: Tabela 'beliefs' sem user_id. Carregando dados públicos.");
-               const { data } = await supabase.from('beliefs').select('*');
-               if (data) return data.reverse();
-             }
-             console.log("Info: Erro ao buscar crenças:", filterError.message);
+           const { data } = await query.eq('user_id', userId);
+           if (data) {
+              const reversed = data.reverse();
+              localStorage.setItem(STORAGE_KEYS.BELIEFS, JSON.stringify(reversed));
+              return reversed;
            }
-         } else {
-           const { data } = await query;
-           if (data) return data.reverse();
          }
        } catch (e) {}
     }
@@ -361,35 +383,17 @@ export const db = {
   },
 
   async addBelief(entry: BeliefEntry): Promise<void> {
-    // 1. Local Update
     const current = await db.getBeliefs();
     const updated = [entry, ...current];
     localStorage.setItem(STORAGE_KEYS.BELIEFS, JSON.stringify(updated));
 
-    // 2. Remote
     if (supabase && navigator.onLine) {
       (async () => {
         try {
           const userId = await getCurrentUserId();
-          // Tenta salvar COM usuário primeiro
           const entryWithUser = userId ? { ...entry, user_id: userId } : entry;
-          
-          const { error } = await supabase.from('beliefs').insert(entryWithUser);
-          
-          if (error) {
-            // Se falhar porque não tem a coluna, tenta SEM usuário
-            if (error.message?.includes('user_id') || error.code === '42703') {
-               console.log("Schema: Salvando sem user_id (coluna ausente).");
-               const { user_id, ...entryWithoutUser } = entryWithUser;
-               const { error: fallbackError } = await supabase.from('beliefs').insert(entryWithoutUser);
-               if (fallbackError) console.log("Info: Falha ao salvar backup remoto de crença.");
-            } else {
-               console.log("Info: Erro ao salvar crença:", error.message);
-            }
-          }
-        } catch (e) {
-          console.error("Erro interno ao salvar crença:", e);
-        }
+          await supabase.from('beliefs').insert(entryWithUser);
+        } catch (e) {}
       })();
     }
   },
@@ -402,10 +406,12 @@ export const db = {
     if (supabase && navigator.onLine) {
       try {
         const userId = await getCurrentUserId();
-        const { data } = await supabase.from('chat_history').select('*').eq('user_id', userId).order('created_at', { ascending: true });
-        if (data) {
-          localStorage.setItem(STORAGE_KEYS.CHAT, JSON.stringify(data));
-          return data;
+        if (userId) {
+          const { data } = await supabase.from('chat_history').select('*').eq('user_id', userId).order('created_at', { ascending: true });
+          if (data) {
+            localStorage.setItem(STORAGE_KEYS.CHAT, JSON.stringify(data));
+            return data;
+          }
         }
       } catch (e) {}
     }
@@ -421,13 +427,12 @@ export const db = {
       (async () => {
         try {
           const userId = await getCurrentUserId();
-          const { error } = await supabase.from('chat_history').insert({
+          await supabase.from('chat_history').insert({
             role: message.role,
             text: message.text,
             created_at: new Date().toISOString(),
             user_id: userId
           });
-          if (error) console.log("Chat sync info:", error.message);
         } catch (e) {}
       })();
     }

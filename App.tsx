@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Loader2, LogOut, WifiOff } from 'lucide-react';
+import { Menu, Loader2, LogOut, WifiOff, ArrowLeft } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import BeliefReprogrammer from './components/BeliefReprogrammer';
@@ -13,6 +13,7 @@ import ProgressStats from './components/ProgressStats';
 import InstallBanner from './components/InstallBanner';
 import UserProfileComponent from './components/UserProfile';
 import OnboardingTour from './components/OnboardingTour';
+import DesireModal from './components/DesireModal'; // Importado
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
@@ -26,6 +27,9 @@ const AppContent: React.FC = () => {
   
   // Estado para o Onboarding
   const [showOnboarding, setShowOnboarding] = useState(false);
+  // Estado para a Declaração de Desejo
+  const [desireStatement, setDesireStatement] = useState<string | null>(null);
+  const [showDesireModal, setShowDesireModal] = useState(false);
 
   useEffect(() => {
     // Listeners de rede
@@ -39,30 +43,39 @@ const AppContent: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Verificação de lembrete diário
+    // Verificação de lembrete diário e Carregamento Inicial
     if (user) {
-      const checkDailyReminder = async () => {
+      const initAppData = async () => {
+        // 1. Check Profile for Statement
+        const profile = await db.getProfile();
+        if (profile?.statement) {
+          setDesireStatement(profile.statement);
+          setShowDesireModal(true);
+        }
+
+        // 2. Check Onboarding
+        const hasSeenOnboarding = localStorage.getItem('mente_onboarding_completed');
+        if (!hasSeenOnboarding) {
+          setShowOnboarding(true);
+        }
+
+        // 3. Check Notification Logic
         const remindersEnabled = localStorage.getItem('mente_reminders') === 'true';
-        if (!remindersEnabled || Notification.permission !== 'granted') return;
+        if (remindersEnabled && Notification.permission === 'granted') {
+          const logs = await db.getActivityLogs();
+          const today = new Date().toISOString().split('T')[0];
+          const hasActivityToday = logs.some(l => l.date === today && l.count > 0);
 
-        const logs = await db.getActivityLogs();
-        const today = new Date().toISOString().split('T')[0];
-        const hasActivityToday = logs.some(l => l.date === today && l.count > 0);
-
-        if (!hasActivityToday) {
-          new Notification("Mente Abundante", {
-            body: "Você ainda não completou suas tarefas de hoje. Mantenha o foco!",
-            icon: "https://cdn-icons-png.flaticon.com/512/3062/3062634.png"
-          });
+          if (!hasActivityToday) {
+            new Notification("Mente Abundante", {
+              body: "Você ainda não completou suas tarefas de hoje. Mantenha o foco!",
+              icon: "https://cdn-icons-png.flaticon.com/512/3062/3062634.png"
+            });
+          }
         }
       };
-      checkDailyReminder();
-
-      // Verifica se deve mostrar o Onboarding (se nunca viu)
-      const hasSeenOnboarding = localStorage.getItem('mente_onboarding_completed');
-      if (!hasSeenOnboarding) {
-        setShowOnboarding(true);
-      }
+      
+      initAppData();
     }
 
     return () => {
@@ -98,10 +111,6 @@ const AppContent: React.FC = () => {
   }
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
-
-  const handleLogout = async () => {
-    await signOut();
-  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -147,11 +156,13 @@ const AppContent: React.FC = () => {
           </div>
         )}
 
-        {/* Mobile Header Modernizado */}
+        {/* Mobile Header Modernizado - SEM botão de voltar aqui */}
         <div className="lg:hidden bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-          <div>
-            <h1 className="font-extrabold text-[#F87A14] text-xl tracking-tight leading-none">Mente Abundante</h1>
-            <p className="text-[10px] text-slate-500 font-medium tracking-wide">& Vitoriosa</p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h1 className="font-extrabold text-[#F87A14] text-xl tracking-tight leading-none">Mente Abundante</h1>
+              <p className="text-[10px] text-slate-500 font-medium tracking-wide">& Vitoriosa</p>
+            </div>
           </div>
           <button 
             onClick={toggleSidebar} 
@@ -163,14 +174,35 @@ const AppContent: React.FC = () => {
 
         {/* Content Area */}
         <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-[calc(100vh-64px)] lg:min-h-screen pb-20">
+          {/* Botão Voltar Universal (Mobile e Desktop) - Fora do Título */}
+          {activeTab !== 'dashboard' && (
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className="flex items-center gap-2 mb-6 mt-2 lg:mt-6 text-slate-400 hover:text-[#F87A14] transition-colors group w-fit"
+            >
+              <div className="p-2 rounded-full bg-white border border-slate-200 group-hover:border-orange-200 shadow-sm transition-all group-hover:-translate-x-1">
+                <ArrowLeft size={16} />
+              </div>
+              <span className="text-sm font-medium">Voltar ao Início</span>
+            </button>
+          )}
+
           {renderContent()}
         </div>
 
         {/* PWA Install Banner */}
         <InstallBanner />
 
-        {/* Onboarding Tour Overlay */}
+        {/* Modals */}
         <OnboardingTour isOpen={showOnboarding} onClose={handleCloseOnboarding} />
+        
+        {desireStatement && (
+          <DesireModal 
+            isOpen={showDesireModal} 
+            onClose={() => setShowDesireModal(false)} 
+            statement={desireStatement} 
+          />
+        )}
       </main>
     </div>
   );

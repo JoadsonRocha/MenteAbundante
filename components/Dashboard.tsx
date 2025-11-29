@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, Brain, Trophy, ChevronRight, MessageSquareText } from 'lucide-react';
+import { Target, Brain, Trophy, ChevronRight, MessageSquareText, Calendar } from 'lucide-react';
 import { QUOTES } from '../constants';
 
 interface DashboardProps {
@@ -48,8 +48,22 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
         <div className="mt-4 w-12 h-1 bg-[#F87A14] mx-auto rounded-full"></div>
       </div>
 
-      {/* Features Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Features Grid - Layout Ajustado para 3 Colunas para acomodar 5 itens melhor */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        {/* 1. AI Coach */}
+        <div 
+          onClick={() => onChangeTab('coach')}
+          className="bg-blue-50 p-6 rounded-2xl border border-blue-100 cursor-pointer hover:shadow-md transition-all group"
+        >
+          <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <MessageSquareText size={24} />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">AI Coach</h3>
+          <p className="text-slate-600 text-sm">Mentoria personalizada para tirar dúvidas e manter o foco.</p>
+        </div>
+
+        {/* 2. Reprogramação */}
         <div 
           onClick={() => onChangeTab('reprogram')}
           className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 cursor-pointer hover:shadow-md transition-all group"
@@ -61,6 +75,31 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           <p className="text-slate-600 text-sm">Transforme crenças limitantes em pensamentos de poder.</p>
         </div>
 
+        {/* 3. Plano 7 Dias (Disciplina Estruturada) */}
+        <div 
+          onClick={() => onChangeTab('plan')}
+          className="bg-purple-50 p-6 rounded-2xl border border-purple-100 cursor-pointer hover:shadow-md transition-all group"
+        >
+          <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <Calendar size={24} />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">Plano 7 Dias</h3>
+          <p className="text-slate-600 text-sm">Roteiro prático para destravar sua mente em uma semana.</p>
+        </div>
+
+        {/* 4. Checklist (Disciplina Diária) */}
+        <div 
+          onClick={() => onChangeTab('checklist')}
+          className="bg-amber-50 p-6 rounded-2xl border border-amber-100 cursor-pointer hover:shadow-md transition-all group"
+        >
+          <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <Trophy size={24} />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">Checklist Diário</h3>
+          <p className="text-slate-600 text-sm">Hábitos de sucesso para construir consistência diária.</p>
+        </div>
+
+        {/* 5. Visualização */}
         <div 
           onClick={() => onChangeTab('visualization')}
           className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 cursor-pointer hover:shadow-md transition-all group"
@@ -72,27 +111,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           <p className="text-slate-600 text-sm">Exercício guiado de 2 minutos para ancorar o sucesso.</p>
         </div>
 
-        <div 
-          onClick={() => onChangeTab('checklist')}
-          className="bg-amber-50 p-6 rounded-2xl border border-amber-100 cursor-pointer hover:shadow-md transition-all group"
-        >
-          <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <Trophy size={24} />
-          </div>
-          <h3 className="text-lg font-bold text-slate-800 mb-2">Disciplina Diária</h3>
-          <p className="text-slate-600 text-sm">Checklist de hábitos para construir consistência.</p>
-        </div>
-
-        <div 
-          onClick={() => onChangeTab('coach')}
-          className="bg-blue-50 p-6 rounded-2xl border border-blue-100 cursor-pointer hover:shadow-md transition-all group"
-        >
-          <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <MessageSquareText size={24} />
-          </div>
-          <h3 className="text-lg font-bold text-slate-800 mb-2">AI Coach</h3>
-          <p className="text-slate-600 text-sm">Mentoria personalizada para tirar dúvidas e manter o foco.</p>
-        </div>
       </div>
     </div>
   );

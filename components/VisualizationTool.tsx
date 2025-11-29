@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Eye, Anchor, Volume2, VolumeX, Loader2, DownloadCloud, CheckCircle2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, Eye, Anchor, Volume2, VolumeX, Loader2, DownloadCloud, CheckCircle2, ScrollText, Headphones } from 'lucide-react';
 import { generateGuidedAudio } from '../services/geminiService';
+import { db } from '../services/database';
 
 // --- UTILS INDEXEDDB ---
 // Simples wrapper para armazenar Blobs/ArrayBuffers persistentemente no navegador
@@ -50,7 +51,12 @@ const getAudioFromDB = async (id: number): Promise<ArrayBuffer | undefined> => {
 };
 // -----------------------
 
+type VisualizerMode = 'guided' | 'statement';
+
 const VisualizationTool: React.FC = () => {
+  const [mode, setMode] = useState<VisualizerMode>('guided');
+  
+  // --- STATES VISUALIZAÇÃO GUIADA ---
   const DURATION = 120; // 2 minutes
   const [timeLeft, setTimeLeft] = useState(DURATION);
   const [isActive, setIsActive] = useState(false);
@@ -58,15 +64,18 @@ const VisualizationTool: React.FC = () => {
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [loadingStep, setLoadingStep] = useState<number | null>(null);
   const [downloadProgress, setDownloadProgress] = useState(0);
-  const [totalStepsToDownload, setTotalStepsToDownload] = useState(5);
 
-  // Audio Refs
+  // --- STATES DECLARAÇÃO ---
+  const [statementText, setStatementText] = useState<string>('');
+  const [isStatementPlaying, setIsStatementPlaying] = useState(false);
+  const [statementLoading, setStatementLoading] = useState(false);
+
+  // Audio Refs Globais
   const audioContextRef = useRef<AudioContext | null>(null);
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
   
-  // Cache RAM (para playback imediato na sessão atual)
+  // Cache RAM
   const audioBufferCache = useRef<{[key: number]: AudioBuffer}>({});
-  // Controle para não baixar o mesmo passo duas vezes na mesma sessão
   const preloadingRef = useRef<{[key: number]: boolean}>({});
 
   const steps = [
@@ -76,6 +85,17 @@ const VisualizationTool: React.FC = () => {
     { time: 30, text: "Faça sua âncora física agora. Toque o ponto no corpo e diga mentalmente: 'Eu nasci para vencer'.", color: "text-amber-600" },
     { time: 0, text: "Pode abrir os olhos. Leve essa energia de confiança absoluta para o seu dia.", color: "text-slate-700" }
   ];
+
+  // Carregar Declaração do Banco
+  useEffect(() => {
+    const fetchStatement = async () => {
+      const profile = await db.getProfile();
+      if (profile && profile.statement) {
+        setStatementText(profile.statement);
+      }
+    };
+    fetchStatement();
+  }, []);
 
   // --- WAV Header Helpers ---
   const writeString = (view: DataView, offset: number, string: string) => {
@@ -120,24 +140,46 @@ const VisualizationTool: React.FC = () => {
     }
   };
 
-  // --- LOGICA DE PRELOAD OTIMIZADA COM PERSISTENCIA ---
+  const stopAudio = () => {
+    if (currentSourceRef.current) {
+      try {
+        currentSourceRef.current.stop();
+      } catch (e) {}
+      currentSourceRef.current = null;
+    }
+    setIsStatementPlaying(false);
+  };
+
+  const playBuffer = (buffer: AudioBuffer, onEnded?: () => void) => {
+    if (!audioContextRef.current) return;
+    
+    try {
+      stopAudio(); // Garante que parou o anterior
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContextRef.current.destination);
+      source.onended = () => {
+        if (onEnded) onEnded();
+      };
+      source.start(0);
+      currentSourceRef.current = source;
+    } catch (e) {
+      console.error("Erro playback", e);
+    }
+  };
+
+  // --- LOGICA DE PRELOAD OTIMIZADA COM PERSISTENCIA (GUIADA) ---
   const downloadAndProcessAudio = async (index: number) => {
-    // 1. Verifica se já está na RAM
     if (audioBufferCache.current[index]) {
        setDownloadProgress(prev => Math.min(prev + 1, steps.length));
        return;
     }
-    
-    // 2. Evita duplicação de requests em voo
     if (preloadingRef.current[index]) return;
     preloadingRef.current[index] = true;
 
     try {
-      // 3. Tenta carregar do IndexedDB (Cache Persistente)
       const cachedArrayBuffer = await getAudioFromDB(index);
-      
       if (cachedArrayBuffer) {
-        console.log(`📦 Cache hit (DB) for step ${index}`);
         if (!audioContextRef.current) initAudioContext();
         if (audioContextRef.current) {
            try {
@@ -146,16 +188,13 @@ const VisualizationTool: React.FC = () => {
              setDownloadProgress(prev => Math.min(prev + 1, steps.length));
            } catch(e) { console.warn("Decode error from DB", e); }
         }
-        return; // Sai se achou no DB
+        return;
       }
 
-      // 4. Se não achou, baixa da API (Gemini)
-      console.log(`⬇️ Downloading step ${index} from API...`);
       const textToSpeak = steps[index].text;
       const base64Audio = await generateGuidedAudio(textToSpeak);
 
       if (base64Audio) {
-        // Conversão Base64 -> ArrayBuffer com Header WAV
         const binaryString = atob(base64Audio);
         const len = binaryString.length;
         const pcmBytes = new Uint8Array(len);
@@ -163,11 +202,8 @@ const VisualizationTool: React.FC = () => {
           pcmBytes[i] = binaryString.charCodeAt(i);
         }
         const wavBuffer = addWavHeader(pcmBytes, 24000, 1);
-        
-        // 5. Salva no IndexedDB para o futuro
         await saveAudioToDB(index, wavBuffer);
 
-        // 6. Decodifica para tocar agora
         if (!audioContextRef.current) initAudioContext();
         if (audioContextRef.current) {
            const bufferToDecode = wavBuffer.slice(0);
@@ -183,15 +219,89 @@ const VisualizationTool: React.FC = () => {
     }
   };
 
-  // Efeito: Dispara o preload de TODOS os passos
+  // --- LOGICA PARA AUDIO DA DECLARAÇÃO (STATEMENT) ---
+  const playStatementAudio = async () => {
+    // ID Especial para Statement: 99
+    const STATEMENT_ID = 99;
+
+    initAudioContext();
+    if (!audioContextRef.current) return;
+
+    if (isStatementPlaying) {
+      stopAudio();
+      return;
+    }
+
+    setIsStatementPlaying(true);
+    setStatementLoading(true);
+
+    try {
+      // 1. Verifica Cache RAM
+      if (audioBufferCache.current[STATEMENT_ID]) {
+        setStatementLoading(false);
+        playBuffer(audioBufferCache.current[STATEMENT_ID], () => setIsStatementPlaying(false));
+        return;
+      }
+
+      // 2. Verifica IndexedDB
+      // Nota: Idealmente invalidaríamos o cache se o texto mudasse, mas por simplicidade usaremos o ID 99.
+      // Se o usuário mudou o texto, ele pode precisar limpar o cache ou implementamos hash no futuro.
+      let bufferToPlay: AudioBuffer | null = null;
+      
+      const cachedArrayBuffer = await getAudioFromDB(STATEMENT_ID);
+      
+      if (cachedArrayBuffer) {
+         // Se temos no DB, decodifica e toca
+         const decoded = await audioContextRef.current.decodeAudioData(cachedArrayBuffer.slice(0));
+         audioBufferCache.current[STATEMENT_ID] = decoded;
+         bufferToPlay = decoded;
+      } else {
+         // 3. Gera na API
+         if (!statementText) throw new Error("Sem texto");
+         const base64Audio = await generateGuidedAudio(statementText);
+         
+         if (base64Audio) {
+            const binaryString = atob(base64Audio);
+            const len = binaryString.length;
+            const pcmBytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              pcmBytes[i] = binaryString.charCodeAt(i);
+            }
+            const wavBuffer = addWavHeader(pcmBytes, 24000, 1);
+            
+            // Salva no DB
+            await saveAudioToDB(STATEMENT_ID, wavBuffer);
+
+            // Decodifica
+            const decoded = await audioContextRef.current.decodeAudioData(wavBuffer.slice(0));
+            audioBufferCache.current[STATEMENT_ID] = decoded;
+            bufferToPlay = decoded;
+         }
+      }
+
+      if (bufferToPlay) {
+        setStatementLoading(false);
+        playBuffer(bufferToPlay, () => setIsStatementPlaying(false));
+      } else {
+        throw new Error("Falha ao gerar áudio");
+      }
+
+    } catch (e) {
+      console.error("Erro statement audio:", e);
+      setIsStatementPlaying(false);
+      setStatementLoading(false);
+      alert("Não foi possível gerar o áudio da declaração. Verifique sua conexão.");
+    }
+  };
+
+  // Efeito: Dispara o preload de TODOS os passos (Guiada)
   useEffect(() => {
     const preloadAll = async () => {
-      // Inicia todos "quase" ao mesmo tempo, mas com um micro delay para não travar a UI
       steps.forEach((_, idx) => {
         setTimeout(() => downloadAndProcessAudio(idx), idx * 200);
       });
     };
-    initAudioContext(); // Prepara contexto
+    initAudioContext(); 
     preloadAll();
     
     return () => {
@@ -199,37 +309,22 @@ const VisualizationTool: React.FC = () => {
     };
   }, []);
 
-  const stopAudio = () => {
-    if (currentSourceRef.current) {
-      try {
-        currentSourceRef.current.stop();
-      } catch (e) {}
-      currentSourceRef.current = null;
-    }
-  };
-
   const playAudioForStep = async (stepIndex: number) => {
-    if (!soundEnabled) return;
+    if (!soundEnabled || mode !== 'guided') return;
 
     initAudioContext();
     if (!audioContextRef.current) return;
     
     stopAudio();
 
-    // 1. Se já temos na RAM, toca
     if (audioBufferCache.current[stepIndex]) {
       playBuffer(audioBufferCache.current[stepIndex]);
       return;
     }
 
     setLoadingStep(stepIndex);
-
-    // 2. Se não tem (caso raro onde user clicou play antes do preload terminar), tenta forçar o load
     try {
-      // Tenta buscar novamente (DB ou API)
       await downloadAndProcessAudio(stepIndex);
-      
-      // Verifica se carregou
       if (audioBufferCache.current[stepIndex]) {
           playBuffer(audioBufferCache.current[stepIndex]);
       }
@@ -240,25 +335,11 @@ const VisualizationTool: React.FC = () => {
     }
   };
 
-  const playBuffer = (buffer: AudioBuffer) => {
-    if (!audioContextRef.current) return;
-    
-    try {
-      const source = audioContextRef.current.createBufferSource();
-      source.buffer = buffer;
-      source.connect(audioContextRef.current.destination);
-      source.start(0);
-      currentSourceRef.current = source;
-    } catch (e) {
-      console.error("Erro playback", e);
-    }
-  };
-
-  // Timer Logic
+  // Timer Logic (Guided)
   useEffect(() => {
     let interval: any;
 
-    if (isActive && timeLeft > 0) {
+    if (mode === 'guided' && isActive && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
@@ -279,23 +360,25 @@ const VisualizationTool: React.FC = () => {
     }
 
     return () => clearInterval(interval);
-  }, [isActive, timeLeft, step]);
+  }, [isActive, timeLeft, step, mode]);
 
-  // Trigger Audio when step changes
+  // Trigger Audio when step changes (Guided)
   useEffect(() => {
-    if (isActive && soundEnabled) {
+    if (mode === 'guided' && isActive && soundEnabled) {
       playAudioForStep(step);
-    } else {
+    } else if (mode === 'guided' && !isActive) {
       stopAudio();
     }
-  }, [step, isActive]); 
+  }, [step, isActive, mode]); 
 
   // Toggle Sound behavior
   useEffect(() => {
-    if (soundEnabled && isActive) {
-      playAudioForStep(step);
-    } else if (!soundEnabled) {
-      stopAudio();
+    if (mode === 'guided') {
+        if (soundEnabled && isActive) {
+          playAudioForStep(step);
+        } else if (!soundEnabled) {
+          stopAudio();
+        }
     }
   }, [soundEnabled]);
 
@@ -325,96 +408,169 @@ const VisualizationTool: React.FC = () => {
   const allDownloaded = downloadProgress >= steps.length;
 
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[500px] bg-slate-900 rounded-3xl relative overflow-hidden text-white p-8 shadow-2xl">
-      {/* Background Decor */}
-      <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-emerald-500 rounded-full blur-[120px]"></div>
-        <div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-amber-500 rounded-full blur-[120px]"></div>
+    <div className="flex flex-col gap-6">
+      
+      {/* Mode Switcher */}
+      <div className="bg-white p-1 rounded-2xl border border-slate-200 shadow-sm flex max-w-md mx-auto w-full">
+         <button 
+           onClick={() => { setMode('guided'); stopAudio(); }}
+           className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${mode === 'guided' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
+         >
+           <Eye size={16} /> Guiada (2 min)
+         </button>
+         <button 
+           onClick={() => { setMode('statement'); stopAudio(); }}
+           className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${mode === 'statement' ? 'bg-[#F87A14] text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
+         >
+           <ScrollText size={16} /> Declaração
+         </button>
       </div>
 
-      <div className="z-10 text-center max-w-lg w-full">
-        <div className="mb-8 flex justify-between items-center w-full">
-          <div className="w-10"></div> 
-          <span className="bg-white/10 px-4 py-1 rounded-full text-sm font-medium tracking-wider uppercase text-emerald-300 border border-white/5">
-            Visualização Guiada
-          </span>
-          <button 
-            onClick={toggleSound}
-            className={`p-2 rounded-full transition-colors flex items-center justify-center relative ${soundEnabled ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/5 text-slate-400 hover:text-white'}`}
-            title={soundEnabled ? "Desativar Voz Humana" : "Ativar Voz Guia (IA)"}
-          >
-            {loadingStep !== null && soundEnabled ? (
-              <Loader2 size={20} className="animate-spin text-amber-400" />
-            ) : soundEnabled ? (
-              <Volume2 size={20} />
-            ) : (
-              <VolumeX size={20} />
-            )}
-          </button>
-        </div>
-
-        <div className="text-7xl font-light font-mono mb-8 tracking-tighter tabular-nums text-slate-100">
-          {formatTime(timeLeft)}
-        </div>
-
-        <div className="h-40 flex items-center justify-center mb-8 px-4">
-          <p className={`text-xl md:text-2xl font-medium transition-all duration-700 leading-relaxed text-center ${isActive ? 'opacity-100 translate-y-0' : 'opacity-70'}`}>
-            {steps[step].text}
-          </p>
-        </div>
-
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex items-center gap-6 justify-center">
-            <button 
-              onClick={toggleTimer}
-              // Bloqueia play se áudio estiver ativado mas ainda não baixou o passo atual
-              disabled={soundEnabled && !audioBufferCache.current[step] && isActive === false}
-              className={`w-20 h-20 text-slate-900 rounded-full flex items-center justify-center hover:scale-105 transition-all shadow-lg shadow-white/10 ${
-                isActive ? 'bg-amber-400 hover:bg-amber-300' : 
-                (soundEnabled && !audioBufferCache.current[step]) ? 'bg-slate-600 opacity-50 cursor-not-allowed' : 'bg-white hover:bg-slate-100'
-              }`}
-            >
-              {isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
-            </button>
-            
-            <button 
-              onClick={resetTimer}
-              className="w-14 h-14 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10"
-              title="Reiniciar"
-            >
-              <RotateCcw size={22} />
-            </button>
+      {mode === 'guided' ? (
+        // --- VISUALIZAÇÃO GUIADA (CÓDIGO EXISTENTE) ---
+        <div className="flex flex-col items-center justify-center h-full min-h-[500px] bg-slate-900 rounded-3xl relative overflow-hidden text-white p-8 shadow-2xl transition-all animate-fade-in">
+          {/* Background Decor */}
+          <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
+            <div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-emerald-500 rounded-full blur-[120px]"></div>
+            <div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-amber-500 rounded-full blur-[120px]"></div>
           </div>
-          
-          {/* Status Text for Button */}
-          {soundEnabled && !audioBufferCache.current[step] && !isActive && (
-             <span className="text-xs text-amber-300 animate-pulse">Baixando áudio inicial...</span>
-          )}
-        </div>
-      </div>
 
-      {/* Info footer with Download Progress */}
-      <div className="absolute bottom-6 flex gap-6 text-xs text-slate-400/80 w-full justify-center px-4">
-        <div className="flex items-center gap-2">
-          <Eye size={16} className="text-emerald-400" /> <span>Visualize</span>
+          <div className="z-10 text-center max-w-lg w-full">
+            <div className="mb-8 flex justify-between items-center w-full">
+              <div className="w-10"></div> 
+              <span className="bg-white/10 px-4 py-1 rounded-full text-sm font-medium tracking-wider uppercase text-emerald-300 border border-white/5">
+                Visualização Guiada
+              </span>
+              <button 
+                onClick={toggleSound}
+                className={`p-2 rounded-full transition-colors flex items-center justify-center relative ${soundEnabled ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/5 text-slate-400 hover:text-white'}`}
+                title={soundEnabled ? "Desativar Voz Humana" : "Ativar Voz Guia (IA)"}
+              >
+                {loadingStep !== null && soundEnabled ? (
+                  <Loader2 size={20} className="animate-spin text-amber-400" />
+                ) : soundEnabled ? (
+                  <Volume2 size={20} />
+                ) : (
+                  <VolumeX size={20} />
+                )}
+              </button>
+            </div>
+
+            <div className="text-7xl font-light font-mono mb-8 tracking-tighter tabular-nums text-slate-100">
+              {formatTime(timeLeft)}
+            </div>
+
+            <div className="h-40 flex items-center justify-center mb-8 px-4">
+              <p className={`text-xl md:text-2xl font-medium transition-all duration-700 leading-relaxed text-center ${isActive ? 'opacity-100 translate-y-0' : 'opacity-70'}`}>
+                {steps[step].text}
+              </p>
+            </div>
+
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex items-center gap-6 justify-center">
+                <button 
+                  onClick={toggleTimer}
+                  // Bloqueia play se áudio estiver ativado mas ainda não baixou o passo atual
+                  disabled={soundEnabled && !audioBufferCache.current[step] && isActive === false}
+                  className={`w-20 h-20 text-slate-900 rounded-full flex items-center justify-center hover:scale-105 transition-all shadow-lg shadow-white/10 ${
+                    isActive ? 'bg-amber-400 hover:bg-amber-300' : 
+                    (soundEnabled && !audioBufferCache.current[step]) ? 'bg-slate-600 opacity-50 cursor-not-allowed' : 'bg-white hover:bg-slate-100'
+                  }`}
+                >
+                  {isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
+                </button>
+                
+                <button 
+                  onClick={resetTimer}
+                  className="w-14 h-14 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10"
+                  title="Reiniciar"
+                >
+                  <RotateCcw size={22} />
+                </button>
+              </div>
+              
+              {/* Status Text for Button */}
+              {soundEnabled && !audioBufferCache.current[step] && !isActive && (
+                 <span className="text-xs text-amber-300 animate-pulse">Baixando áudio inicial...</span>
+              )}
+            </div>
+          </div>
+
+          {/* Info footer with Download Progress */}
+          <div className="absolute bottom-6 flex gap-6 text-xs text-slate-400/80 w-full justify-center px-4">
+            <div className="flex items-center gap-2">
+              <Eye size={16} className="text-emerald-400" /> <span>Visualize</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Anchor size={16} className="text-amber-400" /> <span>Ancore</span>
+            </div>
+            
+            {/* Indicador de Download */}
+            {!allDownloaded && (
+               <div className="flex items-center gap-2 bg-slate-800/50 px-2 py-1 rounded-full border border-slate-700">
+                 <DownloadCloud size={12} className="text-blue-400 animate-bounce" /> 
+                 <span>Baixando: {downloadProgress}/{steps.length}</span>
+               </div>
+            )}
+            {allDownloaded && (
+               <div className="flex items-center gap-2 text-emerald-500/50">
+                 <CheckCircle2 size={12} /> <span>Áudio Pronto</span>
+               </div>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Anchor size={16} className="text-amber-400" /> <span>Ancore</span>
+      ) : (
+        // --- VISUALIZAÇÃO DE DECLARAÇÃO (NOVO) ---
+        <div className="flex flex-col h-full min-h-[500px] bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xl animate-fade-in relative">
+          <div className="bg-gradient-to-r from-amber-500 to-[#F87A14] p-6 text-white text-center shrink-0">
+             <h3 className="text-xl font-bold uppercase tracking-wider mb-1">Seu Desejo Ardente</h3>
+             <p className="text-amber-100 text-sm">Leia em voz alta ou ouça para reforçar sua fé.</p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] bg-amber-50/50">
+            {statementText ? (
+              <div className="text-lg md:text-xl text-slate-800 font-serif leading-loose whitespace-pre-wrap text-center italic max-w-2xl mx-auto">
+                "{statementText}"
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-slate-400 text-center gap-4">
+                <ScrollText size={48} className="text-slate-200" />
+                <p>Você ainda não definiu sua Declaração de Desejo.</p>
+                <a href="#" onClick={(e) => { e.preventDefault(); /* Navegar seria ideal, mas alerta serve por hora */ alert("Vá até a aba 'Perfil' no menu para configurar sua declaração."); }} className="text-[#F87A14] font-bold hover:underline">
+                  Ir para o Perfil configurar
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Player Bar */}
+          <div className="p-4 bg-white border-t border-slate-100 shrink-0 flex items-center justify-center gap-4">
+             <button
+               onClick={playStatementAudio}
+               disabled={!statementText || statementLoading}
+               className={`flex items-center gap-3 px-8 py-4 rounded-full font-bold text-lg shadow-lg transition-all ${
+                  isStatementPlaying 
+                    ? 'bg-red-50 text-red-500 hover:bg-red-100' 
+                    : (!statementText ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-slate-800 hover:scale-105')
+               }`}
+             >
+               {statementLoading ? (
+                 <>
+                   <Loader2 size={24} className="animate-spin" /> Gerando Áudio...
+                 </>
+               ) : isStatementPlaying ? (
+                 <>
+                   <Pause size={24} fill="currentColor" /> Pausar Leitura
+                 </>
+               ) : (
+                 <>
+                   <Headphones size={24} /> Ouvir Declaração
+                 </>
+               )}
+             </button>
+          </div>
         </div>
-        
-        {/* Indicador de Download */}
-        {!allDownloaded && (
-           <div className="flex items-center gap-2 bg-slate-800/50 px-2 py-1 rounded-full border border-slate-700">
-             <DownloadCloud size={12} className="text-blue-400 animate-bounce" /> 
-             <span>Baixando: {downloadProgress}/{steps.length}</span>
-           </div>
-        )}
-        {allDownloaded && (
-           <div className="flex items-center gap-2 text-emerald-500/50">
-             <CheckCircle2 size={12} /> <span>Áudio Pronto</span>
-           </div>
-        )}
-      </div>
+      )}
     </div>
   );
 };

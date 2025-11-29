@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Save, Key, LogOut, CheckCircle, AlertCircle, Loader2, Sparkles, Camera } from 'lucide-react';
+import { User, Mail, Save, Key, LogOut, CheckCircle, AlertCircle, Loader2, Sparkles, Camera, ScrollText, PenTool } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { db, supabase } from '../services/database';
 import { UserProfile } from '../types';
+import PrivacyPolicyModal from './PrivacyPolicyModal';
 
 const UserProfileComponent: React.FC = () => {
   const { user, signOut } = useAuth();
-  const [profile, setProfile] = useState<UserProfile>({ full_name: '', mantra: '' });
+  const [profile, setProfile] = useState<UserProfile>({ full_name: '', mantra: '', statement: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -16,17 +17,25 @@ const UserProfileComponent: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [showPasswordSection, setShowPasswordSection] = useState(false);
 
+  // State para seção de Napoleon Hill
+  const [showStatementSection, setShowStatementSection] = useState(false);
+  
+  // State para modal de privacidade
+  const [showPrivacy, setShowPrivacy] = useState(false);
+
   useEffect(() => {
     const loadProfile = async () => {
       try {
         const data = await db.getProfile();
         if (data) {
           setProfile(data);
+          if (data.statement) setShowStatementSection(true);
         } else if (user?.email) {
           // Default se não tiver perfil
           setProfile({
             full_name: user.email.split('@')[0],
-            mantra: 'Minha mente cria minha realidade.'
+            mantra: 'Minha mente cria minha realidade.',
+            statement: ''
           });
         }
       } catch (e) {
@@ -48,7 +57,7 @@ const UserProfileComponent: React.FC = () => {
         img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 300; // Reduz para 300px para caber no banco como texto
+          const MAX_WIDTH = 300; 
           const scaleSize = MAX_WIDTH / img.width;
           const height = img.height * (scaleSize > 1 ? 1 : scaleSize);
           const width = img.width * (scaleSize > 1 ? 1 : scaleSize);
@@ -58,7 +67,6 @@ const UserProfileComponent: React.FC = () => {
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
           
-          // Converte para JPEG com qualidade 0.7
           const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
           resolve(dataUrl);
         };
@@ -73,9 +81,8 @@ const UserProfileComponent: React.FC = () => {
     if (file) {
       try {
         setSaving(true);
-        // Comprime a imagem antes de salvar no state
         const resizedImage = await resizeImage(file);
-        setProfile(prev => ({ ...prev, imagem: resizedImage })); // Usa 'imagem'
+        setProfile(prev => ({ ...prev, imagem: resizedImage }));
         setMessage({ type: 'success', text: 'Foto processada! Clique em Salvar Alterações.' });
       } catch (error) {
         setMessage({ type: 'error', text: 'Erro ao processar imagem.' });
@@ -83,6 +90,18 @@ const UserProfileComponent: React.FC = () => {
         setSaving(false);
       }
     }
+  };
+
+  const handleUseTemplate = () => {
+    const template = `Eu, [SEU NOME], tenho o objetivo definitivo de acumular a quantia de [VALOR] até o dia [DATA].
+
+Em troca desse dinheiro, darei o melhor de mim na posição de [SUA PROFISSÃO/SERVIÇO], entregando a maior quantidade e a melhor qualidade possível de serviço.
+
+Acredito firmemente que terei esse dinheiro em minhas mãos. Minha fé é tão forte que já posso ver esse dinheiro diante dos meus olhos. Posso tocá-lo com as mãos. Ele está agora à espera de ser transferido para mim na proporção em que eu entregar o serviço que pretendo dar em troca.
+
+Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colocar esse plano em ação.`;
+    
+    setProfile(prev => ({ ...prev, statement: template }));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -93,7 +112,6 @@ const UserProfileComponent: React.FC = () => {
     try {
       await db.updateProfile(profile);
       
-      // Se houver senha nova para atualizar
       if (showPasswordSection && newPassword) {
         if (!supabase) throw new Error("Erro de conexão");
         const { error } = await supabase.auth.updateUser({ password: newPassword });
@@ -102,16 +120,13 @@ const UserProfileComponent: React.FC = () => {
         setShowPasswordSection(false);
       }
 
-      setMessage({ type: 'success', text: '✅ Perfil e frase de poder salvos com sucesso!' });
-      
-      // Limpa mensagem após 3s
+      setMessage({ type: 'success', text: '✅ Perfil atualizado com sucesso!' });
       setTimeout(() => setMessage(null), 3000);
     } catch (err: any) {
-      // Mensagem amigável se o erro for a coluna faltando
       if (err.message?.includes('imagem') || err.message?.includes('column')) {
         setMessage({ 
           type: 'error', 
-          text: 'Erro de Banco de Dados: A coluna "imagem" não existe. Verifique se o comando SQL foi rodado corretamente.' 
+          text: 'Erro de Banco de Dados: Colunas novas ainda não criadas. As alterações básicas foram salvas.' 
         });
       } else {
         setMessage({ type: 'error', text: err.message || 'Erro ao atualizar perfil.' });
@@ -143,11 +158,9 @@ const UserProfileComponent: React.FC = () => {
                  <span className="text-white text-5xl font-bold">{initialLetter}</span>
                )}
             </div>
-            {/* Overlay da Câmera */}
             <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                <Camera className="text-white" size={32} />
             </div>
-            {/* Ícone de edição pequeno */}
             <div className="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md text-[#F87A14] border border-slate-100">
                <Camera size={16} />
             </div>
@@ -165,7 +178,6 @@ const UserProfileComponent: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden relative">
-        {/* Barra de mensagem de feedback no topo do card */}
         <div className={`transition-all duration-300 overflow-hidden ${message ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'}`}>
           {message && (
             <div className={`p-4 flex items-center justify-center gap-2 text-sm font-bold text-center ${message.type === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
@@ -177,7 +189,6 @@ const UserProfileComponent: React.FC = () => {
 
         <form onSubmit={handleSave} className="p-6 md:p-8 space-y-6">
           
-          {/* Email Read-only */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Email (Login)</label>
             <div className="relative">
@@ -191,7 +202,6 @@ const UserProfileComponent: React.FC = () => {
             </div>
           </div>
 
-          {/* Nome */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Como prefere ser chamado?</label>
             <div className="relative">
@@ -206,21 +216,58 @@ const UserProfileComponent: React.FC = () => {
             </div>
           </div>
 
-          {/* Mantra / Bio */}
+          {/* Mantra */}
           <div className="space-y-1">
              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-1">
-               <Sparkles size={12} className="text-[#F87A14]" /> Sua Frase de Poder (Mantra)
+               <Sparkles size={12} className="text-[#F87A14]" /> Sua Frase de Poder (Mantra Curto)
              </label>
-             <textarea
+             <input
                 value={profile.mantra}
                 onChange={(e) => setProfile({ ...profile, mantra: e.target.value })}
-                className="w-full p-4 rounded-xl border border-slate-200 outline-none focus:border-[#F87A14] focus:ring-1 focus:ring-orange-500 transition-all resize-none h-28 text-slate-700 italic bg-amber-50/30 text-lg placeholder:text-slate-400/80"
-                placeholder="Declare sua nova identidade. Ex: 'Sou disciplinado, conquisto meus objetivos e transformo desafios em força.'"
+                className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:border-[#F87A14] focus:ring-1 focus:ring-orange-500 transition-all bg-amber-50/30 placeholder:text-slate-400/80"
+                placeholder="Ex: Sou disciplinado e venço meus desafios."
              />
-             <p className="text-xs text-slate-400 text-right">Esta frase guiará sua mentalidade diária.</p>
           </div>
 
-          {/* Alterar Senha Toggle */}
+          {/* Declaração de Desejo (Napoleon Hill) */}
+          <div className="pt-2">
+            <button 
+              type="button"
+              onClick={() => setShowStatementSection(!showStatementSection)}
+              className="w-full bg-slate-900 text-amber-400 px-4 py-3 rounded-xl font-bold flex items-center justify-between hover:bg-slate-800 transition-colors border border-amber-900/30 shadow-lg"
+            >
+              <div className="flex items-center gap-2">
+                <ScrollText size={20} />
+                Declaração de Desejo (Napoleon Hill)
+              </div>
+              <PenTool size={16} />
+            </button>
+            
+            {showStatementSection && (
+              <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl animate-fade-in space-y-3">
+                 <div className="flex justify-between items-start">
+                   <p className="text-xs text-slate-500 leading-relaxed mb-2">
+                     Baseado em "Quem Pensa Enriquece". Esta declaração aparecerá toda vez que você abrir o app para reforçar seu subconsciente.
+                   </p>
+                   <button 
+                     type="button"
+                     onClick={handleUseTemplate}
+                     className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded font-bold hover:bg-amber-200 transition-colors whitespace-nowrap"
+                   >
+                     Usar Modelo
+                   </button>
+                 </div>
+                 
+                 <textarea
+                    value={profile.statement || ''}
+                    onChange={(e) => setProfile({ ...profile, statement: e.target.value })}
+                    className="w-full p-4 rounded-xl border border-amber-200 outline-none focus:ring-2 focus:ring-amber-400 transition-all resize-none h-64 text-slate-800 bg-white font-serif leading-relaxed text-base shadow-inner"
+                    placeholder="Escreva aqui seu objetivo definitivo principal..."
+                 />
+              </div>
+            )}
+          </div>
+
           <div className="pt-4 border-t border-slate-100">
              <button 
                type="button"
@@ -258,15 +305,26 @@ const UserProfileComponent: React.FC = () => {
         </form>
       </div>
 
-      <div className="text-center">
+      <div className="text-center space-y-4">
         <button
           onClick={signOut}
           className="text-red-400 hover:text-red-500 hover:bg-red-50 px-6 py-2 rounded-full transition-colors text-sm font-medium inline-flex items-center gap-2"
         >
           <LogOut size={16} /> Sair da conta
         </button>
-      </div>
 
+        <div className="pt-4">
+          <button 
+             onClick={() => setShowPrivacy(true)}
+             className="text-xs text-slate-400 hover:text-slate-600 hover:underline transition-colors"
+          >
+             Políticas de Privacidade
+          </button>
+        </div>
+      </div>
+      
+      {/* Modal de Privacidade */}
+      <PrivacyPolicyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
     </div>
   );
 };

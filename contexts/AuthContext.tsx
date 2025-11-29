@@ -44,11 +44,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
       
       // Limpa dados locais para evitar vazamento de dados entre usuários
+      // CRITICO: Remover perfil e dados sensíveis ao sair
       localStorage.removeItem('mente_tasks');
       localStorage.removeItem('mente_plan');
       localStorage.removeItem('mente_beliefs');
       localStorage.removeItem('mente_chat');
-      // Ou localStorage.clear() se preferir limpar tudo
+      localStorage.removeItem('mente_profile'); // Corrigido: remove perfil anterior
+      localStorage.removeItem('mente_activity'); // Corrigido: remove histórico
+      localStorage.removeItem('mente_last_checklist_date');
       
       // Força atualização do estado
       setUser(null);

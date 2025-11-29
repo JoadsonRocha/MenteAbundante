@@ -5,7 +5,8 @@ export interface UserProfile {
   id?: string;
   full_name: string;
   mantra: string;
-  imagem?: string; // Atualizado para corresponder à coluna do banco de dados
+  statement?: string; // Declaração de Desejo (Napoleon Hill)
+  imagem?: string;
   email?: string;
 }
 
@@ -14,6 +15,8 @@ export interface DailyTask {
   user_id?: string;
   text: string;
   completed: boolean;
+  note?: string; // Reflexão do dia sobre a tarefa
+  ai_advice?: string; // Conselho/Insight da IA sobre a nota
 }
 
 export interface DayPlan {
@@ -23,6 +26,8 @@ export interface DayPlan {
   description: string;
   completed: boolean;
   answer?: string;
+  ai_feedback?: string; // Feedback da IA sobre a resposta do dia
+  completed_at?: string; // Data ISO de quando foi concluído para travar o próximo dia
 }
 
 export interface BeliefEntry {

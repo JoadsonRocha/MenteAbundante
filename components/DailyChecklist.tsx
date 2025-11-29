@@ -1,13 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Circle, Loader2, Calendar } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, Calendar, Edit3, X, MessageSquareQuote, Check, Sparkles } from 'lucide-react';
 import { DailyTask } from '../types';
 import { db } from '../services/database';
+import { analyzeDailyHabit } from '../services/geminiService';
 
 const DailyChecklist: React.FC = () => {
   const [tasks, setTasks] = useState<DailyTask[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Formata a data atual: "Segunda-feira, 25 de Outubro"
+  // Estado para o Modal de Reflexão
+  const [selectedTask, setSelectedTask] = useState<DailyTask | null>(null);
+  const [reflectionNote, setReflectionNote] = useState('');
+  
+  // Estado para identificar qual item está carregando o conselho da IA
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+
+  // Formata a data atual
   const today = new Date();
   const dateString = today.toLocaleDateString('pt-BR', {
     weekday: 'long',
@@ -15,7 +23,6 @@ const DailyChecklist: React.FC = () => {
     month: 'long'
   });
 
-  // Carrega dados e gerencia o reset diário
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -23,13 +30,12 @@ const DailyChecklist: React.FC = () => {
         const lastDate = db.getLastChecklistDate();
         const currentDate = new Date().toISOString().split('T')[0];
 
-        // Se a data salva for diferente da data atual, reseta o checklist
+        // Reset diário: Se a data salva for diferente da atual, limpa tudo
         if (lastDate && lastDate !== currentDate) {
           console.log("Novo dia detectado. Resetando checklist...");
-          const resetTasks = data.map(t => ({ ...t, completed: false }));
+          const resetTasks = data.map(t => ({ ...t, completed: false, note: '', ai_advice: '' }));
           setTasks(resetTasks);
           await db.saveTasks(resetTasks);
-          // Reinicia contagem de evolução para hoje
           await db.setActivityCount(0);
         } else {
           setTasks(data);
@@ -43,23 +49,70 @@ const DailyChecklist: React.FC = () => {
     loadData();
   }, []);
 
-  const toggleTask = async (id: string) => {
-    // Atualiza estado local
-    const newTasks = tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
-    setTasks(newTasks);
-    
-    // Salva no banco (background)
-    await db.saveTasks(newTasks);
+  const handleTaskClick = async (task: DailyTask) => {
+    // Se já está completo, apenas desmarca (sem modal)
+    if (task.completed) {
+      const newTasks = tasks.map(t => t.id === task.id ? { ...t, completed: false, note: '', ai_advice: '' } : t);
+      setTasks(newTasks);
+      await db.saveTasks(newTasks);
+      
+      const completedCount = newTasks.filter(t => t.completed).length;
+      await db.setActivityCount(completedCount);
+      return;
+    }
 
-    // Calcula o total de tarefas completas AGORA e define a evolução
-    // Isso evita o erro de "ganhar pontos" apenas clicando e desclicando
-    const completedCount = newTasks.filter(t => t.completed).length;
-    await db.setActivityCount(completedCount);
+    // Se não está completo, abre modal para reflexão
+    setReflectionNote('');
+    setSelectedTask(task);
   };
 
-  const progress = tasks.length > 0 
-    ? Math.round((tasks.filter(t => t.completed).length / tasks.length) * 100)
-    : 0;
+  const confirmReflection = async (hasNote: boolean) => {
+    if (!selectedTask) return;
+
+    const finalNote = hasNote ? reflectionNote : '';
+    
+    // 1. Atualiza UI imediatamente (Optimistic update) para marcar como feito
+    let updatedTasks = tasks.map(t => 
+      t.id === selectedTask.id 
+        ? { ...t, completed: true, note: finalNote } 
+        : t
+    );
+    
+    setTasks(updatedTasks);
+    await db.saveTasks(updatedTasks);
+
+    // Integração com Evolução
+    const completedCount = updatedTasks.filter(t => t.completed).length;
+    await db.setActivityCount(completedCount);
+
+    // Fecha modal
+    setSelectedTask(null);
+    setReflectionNote('');
+
+    // 2. Se houver nota, chama a IA para dar um conselho
+    if (hasNote && finalNote.trim().length > 3) {
+      setAnalyzingId(selectedTask.id);
+      try {
+        const advice = await analyzeDailyHabit(selectedTask.text, finalNote);
+        
+        if (advice) {
+          updatedTasks = updatedTasks.map(t => 
+            t.id === selectedTask.id 
+              ? { ...t, ai_advice: advice } 
+              : t
+          );
+          setTasks(updatedTasks);
+          await db.saveTasks(updatedTasks);
+        }
+      } catch (e) {
+        console.error("Erro na análise IA", e);
+      } finally {
+        setAnalyzingId(null);
+      }
+    }
+  };
+
+  const completedTasks = tasks.filter(t => t.completed);
 
   if (loading) {
     return (
@@ -70,52 +123,157 @@ const DailyChecklist: React.FC = () => {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-8">
-      <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
-        <div>
-          <h2 className="text-3xl font-extrabold text-[#F87A14]">Checklist Diário</h2>
-          <div className="flex items-center gap-2 text-slate-500 mt-1">
-             <Calendar size={16} className="text-[#F87A14]" />
-             <span className="text-sm capitalize font-medium">{dateString}</span>
-          </div>
+    <div className="max-w-3xl mx-auto space-y-8 animate-fade-in pb-10">
+      
+      {/* Header Minimalista */}
+      <div className="text-center md:text-left mb-8">
+        <h2 className="text-3xl font-extrabold text-[#F87A14]">Ritual Diário</h2>
+        <div className="flex items-center justify-center md:justify-start gap-2 text-slate-500 mt-2">
+           <Calendar size={16} className="text-[#F87A14]" />
+           <span className="text-sm capitalize font-medium">{dateString}</span>
         </div>
-        
-        <span className={`px-4 py-2 rounded-full text-sm font-bold border transition-colors self-start md:self-auto ${progress === 100 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-          {progress}% Completo
-        </span>
+        <p className="text-slate-400 text-sm mt-2 max-w-lg">
+          Não apenas marque tarefas. Sinta cada pequena vitória e receba insights.
+        </p>
       </div>
 
-      <div className="w-full bg-slate-100 h-2 rounded-full mb-8 overflow-hidden">
-        <div 
-          className="bg-gradient-to-r from-emerald-400 to-emerald-600 h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(16,185,129,0.5)]"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-
+      {/* Lista de Itens */}
       <div className="space-y-4">
         {tasks.map((task) => (
           <button
             key={task.id}
-            onClick={() => toggleTask(task.id)}
-            className={`w-full flex items-center p-4 rounded-xl border transition-all duration-200 group ${
+            onClick={() => handleTaskClick(task)}
+            className={`w-full text-left group relative overflow-hidden transition-all duration-300 rounded-2xl border px-6 py-5 flex items-start gap-4 ${
               task.completed 
-                ? 'bg-emerald-50/50 border-emerald-200' 
-                : 'bg-white border-slate-200 hover:border-emerald-300 hover:shadow-sm'
+                ? 'bg-emerald-50/30 border-emerald-100' 
+                : 'bg-white border-slate-200 hover:border-orange-200 hover:shadow-md'
             }`}
           >
-            <div className={`mr-4 transition-all duration-300 transform ${task.completed ? 'text-emerald-500 scale-110' : 'text-slate-300 group-hover:text-emerald-400'}`}>
-              {task.completed ? <CheckCircle2 size={26} fill="currentColor" className="text-emerald-50" stroke="currentColor" /> : <Circle size={26} />}
+            {/* Ícone Check */}
+            <div className={`mt-0.5 transition-all duration-300 transform ${
+              task.completed ? 'text-emerald-500 scale-110' : 'text-slate-300 group-hover:text-orange-300'
+            }`}>
+              {task.completed ? <CheckCircle2 size={24} fill="currentColor" className="text-emerald-50" /> : <Circle size={24} strokeWidth={1.5} />}
             </div>
-            <span className={`text-left text-lg font-medium transition-all ${task.completed ? 'text-emerald-800 line-through decoration-emerald-300 decoration-2 opacity-70' : 'text-slate-700'}`}>
-              {task.text}
-            </span>
+
+            {/* Texto e Conteúdo */}
+            <div className="flex-1 space-y-3">
+              <span className={`text-lg font-medium transition-colors block ${
+                task.completed ? 'text-emerald-900' : 'text-slate-700'
+              }`}>
+                {task.text}
+              </span>
+              
+              {/* Nota do Usuário */}
+              {task.completed && task.note && (
+                <div className="text-sm text-slate-500 italic flex items-start gap-2 bg-white/60 p-3 rounded-lg border border-slate-100">
+                  <MessageSquareQuote size={14} className="shrink-0 mt-1 text-slate-400" />
+                  <span>"{task.note}"</span>
+                </div>
+              )}
+
+              {/* Loader IA */}
+              {analyzingId === task.id && (
+                <div className="flex items-center gap-2 text-xs text-[#F87A14] animate-pulse pl-1">
+                  <Sparkles size={12} /> Gerando insight para você...
+                </div>
+              )}
+
+              {/* Conselho da IA */}
+              {task.completed && task.ai_advice && (
+                <div className="text-sm text-indigo-800 font-medium flex items-start gap-2 bg-indigo-50/80 p-3 rounded-lg border border-indigo-100 animate-in slide-in-from-top-2">
+                  <Sparkles size={14} className="shrink-0 mt-0.5 text-indigo-500" />
+                  <span>{task.ai_advice}</span>
+                </div>
+              )}
+            </div>
           </button>
         ))}
       </div>
-      
-      <p className="mt-8 text-sm text-slate-400 text-center italic border-t border-slate-50 pt-4">
-        "A disciplina diária é a ponte entre metas e conquistas."
-      </p>
+
+      {/* Resumo Final (Aparece quando há tarefas concluídas) */}
+      {completedTasks.length > 0 && (
+        <div className="mt-12 pt-8 border-t border-slate-100 animate-in slide-in-from-bottom-4 duration-500">
+           <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+             <Edit3 size={18} className="text-[#F87A14]" />
+             Diário de Bordo
+           </h3>
+           
+           <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm space-y-6">
+             {completedTasks.map(t => (
+               <div key={t.id} className="relative pl-4 border-l-2 border-slate-200">
+                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Sobre: {t.text}</p>
+                 <p className="text-slate-700 leading-relaxed italic mb-2">
+                   {t.note ? `"${t.note}"` : <span className="text-slate-400 not-italic text-xs">— Sem nota registrada</span>}
+                 </p>
+                 {t.ai_advice && (
+                   <p className="text-xs text-indigo-600 font-medium flex items-center gap-1">
+                     <Sparkles size={10} /> Insight: {t.ai_advice}
+                   </p>
+                 )}
+               </div>
+             ))}
+
+             <div className="pt-4 mt-4 border-t border-slate-50 text-center">
+               <p className="text-sm font-medium text-slate-500">
+                 Reflexão concluída. Pequenas atitudes diárias constroem grandes transformações.
+               </p>
+             </div>
+           </div>
+        </div>
+      )}
+
+      {/* Modal de Reflexão */}
+      {selectedTask && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 relative animate-in zoom-in-95 duration-200">
+            
+            <button 
+              onClick={() => setSelectedTask(null)}
+              className="absolute top-4 right-4 text-slate-300 hover:text-slate-500 transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="mb-6">
+              <p className="text-xs font-bold text-[#F87A14] uppercase tracking-wider mb-2">Momento de Consciência</p>
+              <h3 className="text-xl font-bold text-slate-800 leading-tight">
+                "{selectedTask.text}"
+              </h3>
+            </div>
+
+            <div className="bg-slate-50 p-4 rounded-xl mb-6 border border-slate-100">
+               <label className="block text-sm font-medium text-slate-600 mb-2">
+                 Como você vivenciou isso hoje?
+               </label>
+               <textarea
+                 value={reflectionNote}
+                 onChange={(e) => setReflectionNote(e.target.value)}
+                 placeholder="Ex: Foi quando respirei fundo antes de responder..."
+                 className="w-full bg-white border border-slate-200 rounded-lg p-3 text-sm focus:border-orange-300 focus:ring-2 focus:ring-orange-100 outline-none resize-none h-24 transition-all"
+                 autoFocus
+               />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => confirmReflection(false)}
+                className="flex-1 py-3 px-4 rounded-xl border border-slate-200 text-slate-500 text-sm font-medium hover:bg-slate-50 transition-colors"
+              >
+                Apenas Marcar
+              </button>
+              <button
+                onClick={() => confirmReflection(true)}
+                className="flex-1 py-3 px-4 rounded-xl bg-[#F87A14] hover:bg-orange-600 text-white text-sm font-bold shadow-lg shadow-orange-200 transition-all flex items-center justify-center gap-2"
+              >
+                <Check size={16} /> Confirmar
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -82,3 +82,50 @@ export const generateGuidedAudio = async (text: string): Promise<string | null> 
     return null;
   }
 };
+
+export const analyzePlanAction = async (dayTitle: string, userAnswer: string): Promise<string> => {
+  if (!process.env.API_KEY) return "Ótimo trabalho! Continue firme no seu propósito.";
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `Contexto: O usuário está fazendo um "Plano de 7 Dias para Mentalidade Abundante".
+      
+      Tarefa do Dia: "${dayTitle}"
+      Resposta/Ação do Usuário: "${userAnswer}"
+      
+      Sua missão:
+      Analise a resposta do usuário. Aja como um mentor experiente e dê um feedback curto (máximo 2 frases) reforçando a ação dele ou sugerindo um ajuste fino para potencializar o resultado. Termine com uma palavra de incentivo.`,
+      config: {
+        temperature: 0.7,
+      }
+    });
+
+    return response.text || "Excelente progresso! Sua dedicação é a chave para a mudança.";
+  } catch (e) {
+    return "Parabéns pela ação! Continue avançando.";
+  }
+};
+
+export const analyzeDailyHabit = async (taskName: string, userReflection: string): Promise<string> => {
+  if (!process.env.API_KEY) return "";
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `Contexto: Checklist Diário de Mentalidade Vencedora.
+      Hábito: "${taskName}"
+      Reflexão do Usuário: "${userReflection}"
+      
+      Sua missão:
+      Dê um "Insight Relâmpago" (máximo 15 palavras). Seja profundo, filosófico ou motivador, validando o esforço do usuário.`,
+      config: {
+        temperature: 0.8,
+      }
+    });
+
+    return response.text || "";
+  } catch (e) {
+    return "";
+  }
+};
