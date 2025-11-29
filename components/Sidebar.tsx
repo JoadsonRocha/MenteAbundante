@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Brain, Calendar, CheckSquare, Eye, MessageSquareText, Menu, X, Info, LogOut, TrendingUp, Settings, Heart, Download, MessageSquarePlus, Rocket } from 'lucide-react';
+import { LayoutDashboard, Brain, Calendar, CheckSquare, Eye, MessageSquareText, Menu, X, Info, LogOut, TrendingUp, Settings, Heart, Download, MessageSquarePlus, Rocket, Headset } from 'lucide-react';
 import { Tab } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../services/database';
@@ -50,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
   // Ordem atualizada dos itens do menu
   const menuItems: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: 'Início', icon: <LayoutDashboard size={20} /> },
-    { id: 'smart_planner', label: 'Planejador IA', icon: <Rocket size={20} /> }, // NOVO
+    { id: 'smart_planner', label: 'Planejador IA', icon: <Rocket size={20} /> },
     { id: 'coach', label: 'AI Coach', icon: <MessageSquareText size={20} /> },
     { id: 'reprogram', label: 'Reprogramar', icon: <Brain size={20} /> },
     { id: 'plan', label: 'Plano 7 Dias', icon: <Calendar size={20} /> },
@@ -59,6 +59,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
     { id: 'visualization', label: 'Visualização', icon: <Eye size={20} /> },
     { id: 'stats', label: 'Evolução', icon: <TrendingUp size={20} /> },
     { id: 'feedback', label: 'Feedback', icon: <MessageSquarePlus size={20} /> },
+    { id: 'support', label: 'Suporte', icon: <Headset size={20} /> }, // NOVO
     { id: 'about', label: 'Sobre', icon: <Info size={20} /> },
   ];
 

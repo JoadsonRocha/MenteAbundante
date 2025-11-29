@@ -1,5 +1,5 @@
 
-export type Tab = 'dashboard' | 'reprogram' | 'plan' | 'checklist' | 'visualization' | 'coach' | 'gratitude' | 'about' | 'stats' | 'profile' | 'feedback' | 'smart_planner';
+export type Tab = 'dashboard' | 'reprogram' | 'plan' | 'checklist' | 'visualization' | 'coach' | 'gratitude' | 'about' | 'stats' | 'profile' | 'feedback' | 'smart_planner' | 'support';
 
 export interface UserProfile {
   id?: string;
@@ -90,4 +90,15 @@ export enum MindsetMode {
   FIXED = 'Fixa',
   GROWTH = 'Crescimento',
   ABUNDANT = 'Abundante'
+}
+
+// --- NOVOS TIPOS PARA SUPORTE OMNICHANNEL ---
+export interface SupportTicket {
+  id: string;
+  user_id?: string;
+  status: 'open' | 'resolved' | 'escalated';
+  subject: string;
+  channel_preference: 'whatsapp' | 'email' | 'in_app';
+  created_at: string;
+  messages: ChatMessage[];
 }

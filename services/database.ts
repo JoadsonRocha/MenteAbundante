@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { DailyTask, DayPlan, BeliefEntry, ChatMessage, ActivityLog, UserProfile, GratitudeEntry, FeedbackEntry, GoalPlan } from '../types';
+import { DailyTask, DayPlan, BeliefEntry, ChatMessage, ActivityLog, UserProfile, GratitudeEntry, FeedbackEntry, GoalPlan, SupportTicket } from '../types';
 import { INITIAL_TASKS, SEVEN_DAY_PLAN } from '../constants';
 
 // --- CONFIGURAÇÃO DO SUPABASE ---
@@ -25,7 +25,8 @@ const STORAGE_KEYS = {
   ACTIVITY: 'mente_activity',
   PROFILE: 'mente_profile',
   LAST_CHECKLIST_DATE: 'mente_last_checklist_date',
-  GOAL_PLANS: 'mente_goal_plans'
+  GOAL_PLANS: 'mente_goal_plans',
+  SUPPORT_TICKETS: 'mente_support_tickets'
 };
 
 // Helper para pegar ID do usuário atual
@@ -125,6 +126,13 @@ export const syncLocalDataToSupabase = async () => {
     if (localGoals.length > 0) {
        const goalsWithUser = localGoals.map((g: any) => ({ ...g, user_id: userId }));
        await supabase.from('goal_plans').upsert(goalsWithUser);
+    }
+
+    // 7. Sync Support Tickets
+    const localTickets = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUPPORT_TICKETS) || '[]');
+    if (localTickets.length > 0) {
+       const ticketsWithUser = localTickets.map((t: any) => ({ ...t, user_id: userId }));
+       await supabase.from('support_tickets').upsert(ticketsWithUser);
     }
 
   } catch (e) {
@@ -532,5 +540,81 @@ export const db = {
       const userId = await getCurrentUserId();
       await supabase.from('goal_plans').delete().eq('id', id).eq('user_id', userId);
     }
+  },
+
+  // --- SUPPORT SYSTEM (TICKETS) - INTEGRAÇÃO ATIVA ---
+  async createSupportTicket(ticket: SupportTicket): Promise<void> {
+    // 1. Salva Local (Fallback/Offline)
+    const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUPPORT_TICKETS) || '[]');
+    const updated = [ticket, ...current];
+    localStorage.setItem(STORAGE_KEYS.SUPPORT_TICKETS, JSON.stringify(updated));
+    
+    // 2. Salva Supabase
+    if (supabase && navigator.onLine) {
+      const userId = await getCurrentUserId();
+      if (userId) {
+         try {
+           const payload = { ...ticket, user_id: userId };
+           const { error } = await supabase.from('support_tickets').insert(payload);
+           if (error) console.error("Erro Supabase Support Create:", error);
+         } catch (e) {
+           console.error("Erro ao enviar ticket para nuvem", e);
+         }
+      }
+    }
+  },
+  
+  // Atualizar status do ticket (Resolver) com verificação robusta
+  async updateSupportTicketStatus(id: string, status: 'resolved'): Promise<void> {
+    // 1. Atualiza Local
+    const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUPPORT_TICKETS) || '[]');
+    const updated = current.map((t: SupportTicket) => t.id === id ? { ...t, status } : t);
+    localStorage.setItem(STORAGE_KEYS.SUPPORT_TICKETS, JSON.stringify(updated));
+
+    // 2. Atualiza Supabase
+    if (supabase && navigator.onLine) {
+       const userId = await getCurrentUserId();
+       if (userId) {
+          try {
+             const { error } = await supabase.from('support_tickets')
+               .update({ status: status })
+               .eq('id', id)
+               .eq('user_id', userId);
+             
+             if(error) console.error("Erro Supabase Update Ticket:", error);
+          } catch(e) {
+             console.error("Erro ao fechar ticket no banco", e);
+          }
+       }
+    }
+  },
+
+  async getSupportHistory(): Promise<SupportTicket[]> {
+    // 1. Tenta carregar local para velocidade
+    const saved = localStorage.getItem(STORAGE_KEYS.SUPPORT_TICKETS);
+    
+    // 2. Sincroniza/Busca do Supabase se online
+    if (supabase && navigator.onLine) {
+       const userId = await getCurrentUserId();
+       if (userId) {
+          try {
+             const { data } = await supabase
+               .from('support_tickets')
+               .select('*')
+               .eq('user_id', userId)
+               .order('created_at', { ascending: false });
+             
+             if (data && data.length > 0) {
+               // Atualiza cache local
+               localStorage.setItem(STORAGE_KEYS.SUPPORT_TICKETS, JSON.stringify(data));
+               return data as SupportTicket[];
+             }
+          } catch (e) {
+             console.error("Erro ao buscar tickets", e);
+          }
+       }
+    }
+
+    return saved ? JSON.parse(saved) : [];
   }
 };

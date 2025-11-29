@@ -17,6 +17,7 @@ import DesireModal from './components/DesireModal';
 import GratitudeJournal from './components/GratitudeJournal';
 import FeedbackForm from './components/FeedbackForm';
 import SmartPlanner from './components/SmartPlanner';
+import SupportAgent from './components/SupportAgent';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
@@ -169,7 +170,7 @@ const AppContent: React.FC = () => {
         return <BeliefReprogrammer />;
       case 'plan':
         return <SevenDayPlan />;
-      case 'smart_planner': // NOVO
+      case 'smart_planner': 
         return <SmartPlanner />;
       case 'checklist':
         return <DailyChecklist />;
@@ -177,6 +178,8 @@ const AppContent: React.FC = () => {
         return <VisualizationTool />;
       case 'coach':
         return <AICoach />;
+      case 'support': // NOVO
+        return <SupportAgent />;
       case 'gratitude':
         return <GratitudeJournal />;
       case 'profile':
