@@ -15,6 +15,7 @@ import UserProfileComponent from './components/UserProfile';
 import OnboardingTour from './components/OnboardingTour';
 import DesireModal from './components/DesireModal'; 
 import GratitudeJournal from './components/GratitudeJournal';
+import FeedbackForm from './components/FeedbackForm';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
@@ -172,6 +173,8 @@ const AppContent: React.FC = () => {
         return <GratitudeJournal />;
       case 'profile':
         return <UserProfileComponent />;
+      case 'feedback':
+        return <FeedbackForm />;
       case 'about':
         return <About navigateTo={setActiveTab} />;
       default:

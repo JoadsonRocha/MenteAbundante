@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { DailyTask, DayPlan, BeliefEntry, ChatMessage, ActivityLog, UserProfile, GratitudeEntry } from '../types';
+import { DailyTask, DayPlan, BeliefEntry, ChatMessage, ActivityLog, UserProfile, GratitudeEntry, FeedbackEntry } from '../types';
 import { INITIAL_TASKS, SEVEN_DAY_PLAN } from '../constants';
 
 // --- CONFIGURAÇÃO DO SUPABASE ---
@@ -111,7 +111,6 @@ export const syncLocalDataToSupabase = async () => {
     // 5. Sync Gratitude (Upload)
     const localGratitude = JSON.parse(localStorage.getItem(STORAGE_KEYS.GRATITUDE) || '[]');
     if (localGratitude.length > 0) {
-      // Filtra apenas entradas que tenham UUID válido para evitar erros de tipo no Postgres
       const validEntries = localGratitude.filter((g: any) => g.id && g.id.length > 10);
       const entriesWithUser = validEntries.map((g: any) => ({ ...g, user_id: userId }));
       
@@ -186,7 +185,6 @@ export const db = {
   // --- CHECKLIST ---
   async getTasks(): Promise<DailyTask[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.TASKS);
-    // Estratégia Cache-First para Tasks (performance)
     if (saved) {
       if (navigator.onLine) syncLocalDataToSupabase(); 
       return JSON.parse(saved);
@@ -225,7 +223,7 @@ export const db = {
     return localStorage.getItem(STORAGE_KEYS.LAST_CHECKLIST_DATE);
   },
 
-  // --- ATIVIDADES / ESTATÍSTICAS ---
+  // --- ATIVIDADES ---
   async setActivityCount(count: number): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
     try {
@@ -362,67 +360,42 @@ export const db = {
     }
   },
 
-  // --- GRATIDÃO (MODIFICADO PARA NETWORK FIRST) ---
+  // --- GRATIDÃO ---
   async getGratitudeHistory(): Promise<GratitudeEntry[]> {
     const userId = await getCurrentUserId();
-
-    // 1. Tentar Banco de Dados Primeiro (Network First) para garantir que temos dados de todos os dispositivos
     if (supabase && navigator.onLine && userId) {
       try {
-        const { data } = await supabase
-          .from('gratitude_entries')
-          .select('*')
-          .eq('user_id', userId)
-          .order('date', { ascending: false });
-
+        const { data } = await supabase.from('gratitude_entries').select('*').eq('user_id', userId).order('date', { ascending: false });
         if (data) {
-          // Atualiza o cache local com a verdade do servidor
           localStorage.setItem(STORAGE_KEYS.GRATITUDE, JSON.stringify(data));
           return data;
         }
-      } catch (e) {
-        console.warn("Erro ao buscar gratidão online, usando fallback local:", e);
-      }
+      } catch (e) { }
     }
-
-    // 2. Fallback para LocalStorage se offline ou erro
     const saved = localStorage.getItem(STORAGE_KEYS.GRATITUDE);
     if (saved) {
       const parsed = JSON.parse(saved) as GratitudeEntry[];
-      // Limpeza de segurança de sessão
       if (userId && parsed.length > 0 && parsed[0].user_id && parsed[0].user_id !== userId) {
         localStorage.removeItem(STORAGE_KEYS.GRATITUDE);
         return [];
       }
       return parsed;
     }
-
     return [];
   },
 
   async addGratitudeEntry(entry: GratitudeEntry): Promise<void> {
     const userId = await getCurrentUserId();
     const entryWithUser = userId ? { ...entry, user_id: userId } : entry;
-
-    // Salva Local
-    // Não usamos getGratitudeHistory aqui para evitar loop infinito de requests, lemos direto do storage ou memory
     const saved = localStorage.getItem(STORAGE_KEYS.GRATITUDE);
     const current = saved ? JSON.parse(saved) : [];
     const updated = [entryWithUser, ...current];
     localStorage.setItem(STORAGE_KEYS.GRATITUDE, JSON.stringify(updated));
 
-    // Salva Remoto
     if (supabase && navigator.onLine) {
-      // Sem IIFE e sem try/catch silencioso total, para permitir debug se necessário
       try {
-        const { error } = await supabase.from('gratitude_entries').insert(entryWithUser);
-        if (error) {
-           console.error("Erro Supabase Gratidão:", error);
-           // Se a tabela não existir, o usuário verá no console
-        }
-      } catch (e) {
-        console.error("Erro de conexão Gratidão:", e);
-      }
+        await supabase.from('gratitude_entries').insert(entryWithUser);
+      } catch (e) { }
     }
   },
 
@@ -430,7 +403,6 @@ export const db = {
   async getChatHistory(): Promise<ChatMessage[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.CHAT);
     if(saved) return JSON.parse(saved);
-    
     if (supabase && navigator.onLine) {
       try {
         const userId = await getCurrentUserId();
@@ -475,6 +447,28 @@ export const db = {
           if(userId) await supabase.from('chat_history').delete().eq('user_id', userId);
         } catch (e) {}
       })();
+    }
+  },
+
+  // --- FEEDBACK (NOVO) ---
+  async saveFeedback(feedback: FeedbackEntry): Promise<void> {
+    if (supabase && navigator.onLine) {
+      const userId = await getCurrentUserId();
+      if (!userId) throw new Error("Usuário não autenticado");
+
+      const payload = {
+        ...feedback,
+        user_id: userId,
+        created_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase.from('feedbacks').insert(payload);
+      if (error) {
+        console.error("Erro Supabase Feedback:", error);
+        throw new Error("Não foi possível enviar o feedback. Tente novamente.");
+      }
+    } else {
+      throw new Error("Você precisa estar online para enviar feedback.");
     }
   }
 };

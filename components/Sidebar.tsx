@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Brain, Calendar, CheckSquare, Eye, MessageSquareText, Menu, X, Info, LogOut, TrendingUp, Settings, Heart, Download } from 'lucide-react';
+import { LayoutDashboard, Brain, Calendar, CheckSquare, Eye, MessageSquareText, Menu, X, Info, LogOut, TrendingUp, Settings, Heart, Download, MessageSquarePlus } from 'lucide-react';
 import { Tab } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../services/database';
@@ -57,6 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
     { id: 'gratitude', label: 'Gratidão', icon: <Heart size={20} /> },
     { id: 'visualization', label: 'Visualização', icon: <Eye size={20} /> },
     { id: 'stats', label: 'Evolução', icon: <TrendingUp size={20} /> },
+    { id: 'feedback', label: 'Feedback', icon: <MessageSquarePlus size={20} /> }, // Novo item
     { id: 'about', label: 'Sobre', icon: <Info size={20} /> },
   ];
 

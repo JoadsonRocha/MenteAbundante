@@ -1,5 +1,5 @@
 
-export type Tab = 'dashboard' | 'reprogram' | 'plan' | 'checklist' | 'visualization' | 'coach' | 'gratitude' | 'about' | 'stats' | 'profile';
+export type Tab = 'dashboard' | 'reprogram' | 'plan' | 'checklist' | 'visualization' | 'coach' | 'gratitude' | 'about' | 'stats' | 'profile' | 'feedback';
 
 export interface UserProfile {
   id?: string;
@@ -57,6 +57,15 @@ export interface ChatMessage {
 export interface ActivityLog {
   date: string; // Format YYYY-MM-DD
   count: number;
+}
+
+export interface FeedbackEntry {
+  id: string;
+  user_id?: string;
+  rating: number; // 1 a 5
+  category: string; // 'sugestao', 'elogio', 'problema', 'outro'
+  comment: string;
+  created_at: string;
 }
 
 export enum MindsetMode {
