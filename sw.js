@@ -1,8 +1,10 @@
-const CACHE_NAME = 'mindshift-v3';
+const CACHE_NAME = 'mindshift-v4-store-ready';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/MindShift_192.png',
+  '/MindShift_512.png'
 ];
 
 // Instalação
