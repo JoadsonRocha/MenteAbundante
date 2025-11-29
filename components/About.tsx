@@ -73,6 +73,17 @@ const About: React.FC<AboutProps> = ({ navigateTo }) => {
             <h4 className="text-lg md:text-xl font-bold text-slate-800 mb-4 md:mb-6">Explore as Ferramentas</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
               <button 
+                onClick={() => navigateTo('gratitude')}
+                className="group p-4 rounded-xl border border-slate-200 hover:border-pink-400 hover:bg-pink-50 transition-all text-left flex items-center justify-between"
+              >
+                <div>
+                  <span className="block font-bold text-slate-800 group-hover:text-pink-700 text-sm md:text-base">Diário de Gratidão</span>
+                  <span className="text-xs text-slate-500">Atraia abundância</span>
+                </div>
+                <ArrowRight size={18} className="text-slate-300 group-hover:text-pink-500" />
+              </button>
+
+              <button 
                 onClick={() => navigateTo('reprogram')}
                 className="group p-4 rounded-xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50 transition-all text-left flex items-center justify-between"
               >
@@ -121,7 +132,7 @@ const About: React.FC<AboutProps> = ({ navigateTo }) => {
       </div>
       
       <div className="text-center text-slate-400 text-xs md:text-sm pb-8">
-        <p>Versão 1.0.0 • Feito com foco na sua evolução.</p>
+        <p>Versão 1.1.0 • Feito com foco na sua evolução.</p>
       </div>
     </div>
   );

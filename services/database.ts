@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { DailyTask, DayPlan, BeliefEntry, ChatMessage, ActivityLog, UserProfile } from '../types';
+import { DailyTask, DayPlan, BeliefEntry, ChatMessage, ActivityLog, UserProfile, GratitudeEntry } from '../types';
 import { INITIAL_TASKS, SEVEN_DAY_PLAN } from '../constants';
 
 // --- CONFIGURAÇÃO DO SUPABASE ---
@@ -20,6 +20,7 @@ const STORAGE_KEYS = {
   TASKS: 'mente_tasks',
   PLAN: 'mente_plan',
   BELIEFS: 'mente_beliefs',
+  GRATITUDE: 'mente_gratitude',
   CHAT: 'mente_chat',
   ACTIVITY: 'mente_activity',
   PROFILE: 'mente_profile',
@@ -77,7 +78,7 @@ export const syncLocalDataToSupabase = async () => {
        }
     }
     
-    // 4. Sync Profile (Novo)
+    // 4. Sync Profile
     const localProfile = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILE) || 'null');
     if (localProfile && localProfile.id === userId) {
       const payload = {
@@ -91,11 +92,19 @@ export const syncLocalDataToSupabase = async () => {
 
       const { error } = await supabase.from('profiles').upsert(payload);
       
-      // Fallback na sincronização automática se colunas faltarem
-      if (error && (error.message?.includes('statement') || error.message?.includes('imagem'))) {
-         const { statement, imagem, ...basicPayload } = payload;
+      // No Sync silencioso, mantemos a defesa apenas para evitar erros de console em background,
+      // mas removemos a verificação de 'statement' para forçar a tentativa se a coluna existir.
+      if (error && error.message?.includes('imagem')) {
+         const { imagem, ...basicPayload } = payload;
          await supabase.from('profiles').upsert(basicPayload);
       }
+    }
+
+    // 5. Sync Gratitude (Novo)
+    const localGratitude = JSON.parse(localStorage.getItem(STORAGE_KEYS.GRATITUDE) || '[]');
+    if (localGratitude.length > 0) {
+      const entriesWithUser = localGratitude.map((g: any) => ({ ...g, user_id: userId }));
+      await supabase.from('gratitude_entries').upsert(entriesWithUser);
     }
 
   } catch (e) {
@@ -113,40 +122,28 @@ export const db = {
   // --- PERFIL ---
   async getProfile(): Promise<UserProfile | null> {
     const userId = await getCurrentUserId();
-
-    // 1. Tenta carregar do cache local, mas VALIDA O ID
     const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
     if (saved) {
       const parsed = JSON.parse(saved);
-      // SEGURANÇA: Só retorna o cache se tivermos certeza que pertence ao usuário logado
       if (userId && parsed.id === userId) {
         return parsed;
       }
-      // Se o ID não bater, limpa
       if (userId && parsed.id && parsed.id !== userId) {
         localStorage.removeItem(STORAGE_KEYS.PROFILE);
       }
     }
 
-    // 2. Busca do Supabase
     if (supabase && navigator.onLine) {
       try {
         if (userId) {
           const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-          
           if (!error && data) {
-            // Merge: Prefere dados locais se forem mais recentes ou se DB estiver vazio em campos novos
             const currentLocal = saved ? JSON.parse(saved) : {};
             const finalProfile = { ...data };
+            // Mescla inteligente: se o local tem dados e o remoto não, usa o local (assume que acabou de editar)
+            if (currentLocal.statement && !data.statement) finalProfile.statement = currentLocal.statement;
+            if (currentLocal.imagem && !data.imagem) finalProfile.imagem = currentLocal.imagem;
             
-            // Se local tem statement mas remoto não (ex: acabou de criar offline ou sem coluna), mantem local
-            if (currentLocal.statement && !data.statement) {
-              finalProfile.statement = currentLocal.statement;
-            }
-            if (currentLocal.imagem && !data.imagem) {
-              finalProfile.imagem = currentLocal.imagem;
-            }
-
             localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(finalProfile));
             return finalProfile;
           }
@@ -158,46 +155,43 @@ export const db = {
 
   async updateProfile(profile: UserProfile): Promise<void> {
     const userId = await getCurrentUserId();
-    
-    // Atualiza localmente
     const profileToSave = { ...profile, id: userId || undefined };
     localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profileToSave));
     
-    // Dispara evento UI
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('profile-updated'));
     }
 
     if (supabase && navigator.onLine) {
-      (async () => {
-        try {
-          if (userId) {
-            const payload = {
-              id: userId,
-              full_name: profile.full_name,
-              mantra: profile.mantra,
-              imagem: profile.imagem,
-              statement: profile.statement,
-              updated_at: new Date().toISOString()
-            };
-
-            const { error } = await supabase.from('profiles').upsert(payload);
-            
-            if (error) {
-              // Se o erro for de coluna inexistente, loga para o desenvolvedor
-              if (error.message?.includes('statement') || error.message?.includes('imagem')) {
-                 console.warn("⚠️ IMPORTANTE: Para salvar Imagem e Declaração no Banco, execute o script 'supabase_schema.sql' no Supabase.");
-                 
-                 // Fallback: Tenta salvar pelo menos o básico para não perder tudo no servidor
-                 const { statement, imagem, ...basicPayload } = payload;
-                 await supabase.from('profiles').upsert(basicPayload);
-              } else {
-                 console.error("Erro ao salvar perfil:", error.message);
-              }
-            }
+      // Não usamos async IIFE aqui para permitir que o erro suba para o componente
+      if (userId) {
+        const payload = {
+          id: userId,
+          full_name: profile.full_name,
+          mantra: profile.mantra,
+          imagem: profile.imagem,
+          statement: profile.statement,
+          updated_at: new Date().toISOString()
+        };
+        
+        const { error } = await supabase.from('profiles').upsert(payload);
+        
+        if (error) {
+          // Se o erro for especificamente sobre a coluna statement não existir,
+          // lançamos o erro para o UI avisar, em vez de engolir.
+          if (error.message?.includes('statement')) {
+            throw new Error("Erro de Banco de Dados: Coluna 'statement' ausente. Rode o SQL de migração.");
           }
-        } catch (e) { console.error(e); }
-      })();
+          
+          // Fallback apenas para imagem pesada ou erro desconhecido, tentando salvar o básico
+          if (error.message?.includes('imagem') || error.message?.includes('Payload')) {
+                const { imagem, ...basicPayload } = payload;
+                await supabase.from('profiles').upsert(basicPayload);
+          } else {
+            throw error;
+          }
+        }
+      }
     }
   },
 
@@ -216,7 +210,6 @@ export const db = {
         const userId = await getCurrentUserId();
         let query = supabase.from('tasks').select('*').order('id');
         if (userId) query = query.eq('user_id', userId);
-        
         const { data } = await query;
         if (data && data.length > 0) {
           localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(data));
@@ -224,14 +217,12 @@ export const db = {
         }
       } catch(e) {}
     }
-    
     return INITIAL_TASKS;
   },
 
   async saveTasks(tasks: DailyTask[]): Promise<void> {
     localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
     localStorage.setItem(STORAGE_KEYS.LAST_CHECKLIST_DATE, new Date().toISOString().split('T')[0]);
-
     if (supabase && navigator.onLine) {
       (async () => {
         try {
@@ -243,7 +234,6 @@ export const db = {
     }
   },
 
-  // Helper para verificar data do último checklist
   getLastChecklistDate(): string | null {
     return localStorage.getItem(STORAGE_KEYS.LAST_CHECKLIST_DATE);
   },
@@ -251,12 +241,10 @@ export const db = {
   // --- ATIVIDADES / ESTATÍSTICAS ---
   async setActivityCount(count: number): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
-    
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
       let logs: ActivityLog[] = saved ? JSON.parse(saved) : [];
       const existingIndex = logs.findIndex(l => l.date === today);
-      
       if (existingIndex >= 0) {
         logs[existingIndex].count = count;
       } else {
@@ -282,18 +270,15 @@ export const db = {
     }
   },
 
-  // Mantém para compatibilidade
   async logActivity(increment: number = 1): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
     const saved = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
     let currentCount = 0;
-    
     if (saved) {
       const logs = JSON.parse(saved);
       const todayLog = logs.find((l: any) => l.date === today);
       if (todayLog) currentCount = todayLog.count;
     }
-    
     return this.setActivityCount(currentCount + increment);
   },
 
@@ -320,7 +305,6 @@ export const db = {
   async getPlan(): Promise<DayPlan[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.PLAN);
     let localData = saved ? JSON.parse(saved) : null;
-    
     if (localData) {
        if(navigator.onLine) syncLocalDataToSupabase();
        return localData;
@@ -336,13 +320,11 @@ export const db = {
          }
       }
     }
-
     return SEVEN_DAY_PLAN;
   },
 
   async savePlan(plan: DayPlan[]): Promise<void> {
     localStorage.setItem(STORAGE_KEYS.PLAN, JSON.stringify(plan));
-
     if (supabase && navigator.onLine) {
       (async () => {
         try {
@@ -360,17 +342,13 @@ export const db = {
   // --- CRENÇAS ---
   async getBeliefs(): Promise<BeliefEntry[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.BELIEFS);
-    if (saved) {
-      return JSON.parse(saved);
-    }
+    if (saved) return JSON.parse(saved);
     
     if (supabase && navigator.onLine) {
        try {
          const userId = await getCurrentUserId();
-         let query = supabase.from('beliefs').select('*');
-         
          if (userId) {
-           const { data } = await query.eq('user_id', userId);
+           const { data } = await supabase.from('beliefs').select('*').eq('user_id', userId);
            if (data) {
               const reversed = data.reverse();
               localStorage.setItem(STORAGE_KEYS.BELIEFS, JSON.stringify(reversed));
@@ -394,6 +372,44 @@ export const db = {
           const entryWithUser = userId ? { ...entry, user_id: userId } : entry;
           await supabase.from('beliefs').insert(entryWithUser);
         } catch (e) {}
+      })();
+    }
+  },
+
+  // --- GRATIDÃO (NOVO) ---
+  async getGratitudeHistory(): Promise<GratitudeEntry[]> {
+    const saved = localStorage.getItem(STORAGE_KEYS.GRATITUDE);
+    if (saved) return JSON.parse(saved);
+
+    if (supabase && navigator.onLine) {
+      try {
+        const userId = await getCurrentUserId();
+        if (userId) {
+          const { data } = await supabase.from('gratitude_entries').select('*').eq('user_id', userId).order('date', { ascending: false });
+          if (data) {
+            localStorage.setItem(STORAGE_KEYS.GRATITUDE, JSON.stringify(data));
+            return data;
+          }
+        }
+      } catch (e) {}
+    }
+    return [];
+  },
+
+  async addGratitudeEntry(entry: GratitudeEntry): Promise<void> {
+    const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.GRATITUDE) || '[]');
+    const updated = [entry, ...current];
+    localStorage.setItem(STORAGE_KEYS.GRATITUDE, JSON.stringify(updated));
+
+    if (supabase && navigator.onLine) {
+      (async () => {
+        try {
+          const userId = await getCurrentUserId();
+          const entryWithUser = userId ? { ...entry, user_id: userId } : entry;
+          await supabase.from('gratitude_entries').insert(entryWithUser);
+        } catch (e) {
+          // Se tabela não existir, falha silenciosamente no remoto, mantém local
+        }
       })();
     }
   },

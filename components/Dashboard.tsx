@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, Brain, Trophy, ChevronRight, MessageSquareText, Calendar } from 'lucide-react';
+import { Target, Brain, Trophy, ChevronRight, MessageSquareText, Calendar, Heart } from 'lucide-react';
 import { QUOTES } from '../constants';
 
 interface DashboardProps {
@@ -48,7 +48,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
         <div className="mt-4 w-12 h-1 bg-[#F87A14] mx-auto rounded-full"></div>
       </div>
 
-      {/* Features Grid - Layout Ajustado para 3 Colunas para acomodar 5 itens melhor */}
+      {/* Features Grid - Layout Ajustado */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         
         {/* 1. AI Coach */}
@@ -75,7 +75,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           <p className="text-slate-600 text-sm">Transforme crenças limitantes em pensamentos de poder.</p>
         </div>
 
-        {/* 3. Plano 7 Dias (Disciplina Estruturada) */}
+        {/* 3. Plano 7 Dias */}
         <div 
           onClick={() => onChangeTab('plan')}
           className="bg-purple-50 p-6 rounded-2xl border border-purple-100 cursor-pointer hover:shadow-md transition-all group"
@@ -87,7 +87,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           <p className="text-slate-600 text-sm">Roteiro prático para destravar sua mente em uma semana.</p>
         </div>
 
-        {/* 4. Checklist (Disciplina Diária) */}
+        {/* 4. Checklist Diário */}
         <div 
           onClick={() => onChangeTab('checklist')}
           className="bg-amber-50 p-6 rounded-2xl border border-amber-100 cursor-pointer hover:shadow-md transition-all group"
@@ -109,6 +109,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab }) => {
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-2">Visualização</h3>
           <p className="text-slate-600 text-sm">Exercício guiado de 2 minutos para ancorar o sucesso.</p>
+        </div>
+
+        {/* 6. Gratidão (Atualizado para Sky/Cyan - Menos Rosa, mais serenidade) */}
+        <div 
+          onClick={() => onChangeTab('gratitude')}
+          className="bg-sky-50 p-6 rounded-2xl border border-sky-100 cursor-pointer hover:shadow-md transition-all group"
+        >
+          <div className="w-12 h-12 bg-sky-100 text-sky-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+            <Heart size={24} />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">Diário de Gratidão</h3>
+          <p className="text-slate-600 text-sm">Eleve sua vibração agradecendo pelo que você já tem.</p>
         </div>
 
       </div>

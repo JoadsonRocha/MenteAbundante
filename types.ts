@@ -1,5 +1,5 @@
 
-export type Tab = 'dashboard' | 'reprogram' | 'plan' | 'checklist' | 'visualization' | 'coach' | 'about' | 'stats' | 'profile';
+export type Tab = 'dashboard' | 'reprogram' | 'plan' | 'checklist' | 'visualization' | 'coach' | 'gratitude' | 'about' | 'stats' | 'profile';
 
 export interface UserProfile {
   id?: string;
@@ -36,6 +36,14 @@ export interface BeliefEntry {
   limiting: string;
   empowering: string;
   date: string;
+}
+
+export interface GratitudeEntry {
+  id: string;
+  user_id?: string;
+  text: string;
+  ai_response?: string; // Reforço positivo da IA
+  date: string; // ISO String
 }
 
 export interface ChatMessage {

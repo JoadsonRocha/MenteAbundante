@@ -13,7 +13,8 @@ import ProgressStats from './components/ProgressStats';
 import InstallBanner from './components/InstallBanner';
 import UserProfileComponent from './components/UserProfile';
 import OnboardingTour from './components/OnboardingTour';
-import DesireModal from './components/DesireModal'; // Importado
+import DesireModal from './components/DesireModal'; 
+import GratitudeJournal from './components/GratitudeJournal'; // NOVO IMPORT
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
@@ -46,11 +47,17 @@ const AppContent: React.FC = () => {
     // Verificação de lembrete diário e Carregamento Inicial
     if (user) {
       const initAppData = async () => {
-        // 1. Check Profile for Statement
+        // 1. Check Profile for Statement (COM LOGICA DE SESSÃO)
         const profile = await db.getProfile();
-        if (profile?.statement) {
+        
+        // Verifica se já mostrou nesta sessão
+        const hasShownDesire = sessionStorage.getItem('mente_desire_shown');
+        
+        if (profile?.statement && !hasShownDesire) {
           setDesireStatement(profile.statement);
           setShowDesireModal(true);
+          // Marca como visto na sessão atual
+          sessionStorage.setItem('mente_desire_shown', 'true');
         }
 
         // 2. Check Onboarding
@@ -128,6 +135,8 @@ const AppContent: React.FC = () => {
         return <VisualizationTool />;
       case 'coach':
         return <AICoach />;
+      case 'gratitude': // NOVO CASE
+        return <GratitudeJournal />;
       case 'profile':
         return <UserProfileComponent />;
       case 'about':

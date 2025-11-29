@@ -129,3 +129,28 @@ export const analyzeDailyHabit = async (taskName: string, userReflection: string
     return "";
   }
 };
+
+export const generateGratitudeAffirmation = async (gratitudeText: string): Promise<string> => {
+  if (!process.env.API_KEY) return "";
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `O usuário escreveu o seguinte no diário de gratidão: "${gratitudeText}".
+      
+      Sua missão:
+      Atue como um coach de Mentalidade Abundante. Escreva uma Afirmação Poderosa Curta (máximo 1 frase) que conecte esse motivo de gratidão com a atração de mais prosperidade ou felicidade.
+      
+      Exemplo:
+      Entrada: "Sou grato pela saúde da minha família"
+      Saída: "Minha gratidão pela saúde atrai vitalidade e alegria infinitas para o meu lar."`,
+      config: {
+        temperature: 0.7,
+      }
+    });
+
+    return response.text || "A gratidão é a chave que abre todas as portas da abundância.";
+  } catch (e) {
+    return "Obrigado por agradecer. A abundância começa aqui.";
+  }
+};
