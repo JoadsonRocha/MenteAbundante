@@ -14,7 +14,7 @@ import InstallBanner from './components/InstallBanner';
 import UserProfileComponent from './components/UserProfile';
 import OnboardingTour from './components/OnboardingTour';
 import DesireModal from './components/DesireModal'; 
-import GratitudeJournal from './components/GratitudeJournal'; // NOVO IMPORT
+import GratitudeJournal from './components/GratitudeJournal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
@@ -26,28 +26,52 @@ const AppContent: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   
+  // Estado para o PWA Install Prompt
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  
   // Estado para o Onboarding
   const [showOnboarding, setShowOnboarding] = useState(false);
   // Estado para a Declaração de Desejo
   const [desireStatement, setDesireStatement] = useState<string | null>(null);
   const [showDesireModal, setShowDesireModal] = useState(false);
 
+  // Efeito para Resetar Tab ao Logar e Forçar Sync
+  useEffect(() => {
+    if (user) {
+      // 1. Sempre redirecionar para o Dashboard ao logar/recarregar logado
+      setActiveTab('dashboard');
+      
+      // 2. Forçar sincronização imediata
+      syncLocalDataToSupabase();
+      
+      // 3. Carregar dados cruciais em background para cache
+      db.getTasks();
+      db.getPlan();
+    }
+  }, [user]);
+
   useEffect(() => {
     // Listeners de rede
     const handleOnline = () => {
       setIsOffline(false);
-      // Sincroniza dados quando volta a internet
       syncLocalDataToSupabase();
     };
     const handleOffline = () => setIsOffline(true);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    
+    // Captura evento de instalação PWA
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Verificação de lembrete diário e Carregamento Inicial
+    // Inicialização de dados do usuário
     if (user) {
       const initAppData = async () => {
-        // 1. Check Profile for Statement (COM LOGICA DE SESSÃO)
+        // Check Profile for Statement
         const profile = await db.getProfile();
         
         // Verifica se já mostrou nesta sessão
@@ -56,17 +80,16 @@ const AppContent: React.FC = () => {
         if (profile?.statement && !hasShownDesire) {
           setDesireStatement(profile.statement);
           setShowDesireModal(true);
-          // Marca como visto na sessão atual
           sessionStorage.setItem('mente_desire_shown', 'true');
         }
 
-        // 2. Check Onboarding
+        // Check Onboarding
         const hasSeenOnboarding = localStorage.getItem('mente_onboarding_completed');
         if (!hasSeenOnboarding) {
           setShowOnboarding(true);
         }
 
-        // 3. Check Notification Logic
+        // Check Notification Logic
         const remindersEnabled = localStorage.getItem('mente_reminders') === 'true';
         if (remindersEnabled && Notification.permission === 'granted') {
           const logs = await db.getActivityLogs();
@@ -88,6 +111,7 @@ const AppContent: React.FC = () => {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, [user]);
 
@@ -98,6 +122,15 @@ const AppContent: React.FC = () => {
 
   const handleOpenOnboarding = () => {
     setShowOnboarding(true);
+  };
+  
+  // Função de Instalação passada para Sidebar e Banner
+  const installApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User response to install prompt: ${outcome}`);
+    setDeferredPrompt(null);
   };
 
   if (loading) {
@@ -112,7 +145,7 @@ const AppContent: React.FC = () => {
     return (
       <>
         <AuthScreen />
-        <InstallBanner />
+        <InstallBanner installAction={installApp} deferredPrompt={deferredPrompt} />
       </>
     );
   }
@@ -135,7 +168,7 @@ const AppContent: React.FC = () => {
         return <VisualizationTool />;
       case 'coach':
         return <AICoach />;
-      case 'gratitude': // NOVO CASE
+      case 'gratitude':
         return <GratitudeJournal />;
       case 'profile':
         return <UserProfileComponent />;
@@ -154,6 +187,7 @@ const AppContent: React.FC = () => {
         isOpen={sidebarOpen}
         toggleSidebar={toggleSidebar}
         onOpenTour={handleOpenOnboarding}
+        installApp={deferredPrompt ? installApp : undefined} // Passa função apenas se disponível
       />
 
       <main className="flex-1 min-w-0 relative">
@@ -165,7 +199,7 @@ const AppContent: React.FC = () => {
           </div>
         )}
 
-        {/* Mobile Header Modernizado - SEM botão de voltar aqui */}
+        {/* Mobile Header Modernizado */}
         <div className="lg:hidden bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 z-30 shadow-sm">
           <div className="flex items-center gap-3">
             <div>
@@ -183,7 +217,7 @@ const AppContent: React.FC = () => {
 
         {/* Content Area */}
         <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-[calc(100vh-64px)] lg:min-h-screen pb-20">
-          {/* Botão Voltar Universal (Mobile e Desktop) - Fora do Título */}
+          {/* Botão Voltar Universal (Mobile e Desktop) */}
           {activeTab !== 'dashboard' && (
             <button
               onClick={() => setActiveTab('dashboard')}
@@ -199,8 +233,8 @@ const AppContent: React.FC = () => {
           {renderContent()}
         </div>
 
-        {/* PWA Install Banner */}
-        <InstallBanner />
+        {/* PWA Install Banner (Rodapé) - Opcional se já tem no menu, mas bom manter */}
+        <InstallBanner installAction={installApp} deferredPrompt={deferredPrompt} />
 
         {/* Modals */}
         <OnboardingTour isOpen={showOnboarding} onClose={handleCloseOnboarding} />

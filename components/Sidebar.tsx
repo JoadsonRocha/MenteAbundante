@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Brain, Calendar, CheckSquare, Eye, MessageSquareText, Menu, X, Info, LogOut, TrendingUp, Settings, Heart } from 'lucide-react';
+import { LayoutDashboard, Brain, Calendar, CheckSquare, Eye, MessageSquareText, Menu, X, Info, LogOut, TrendingUp, Settings, Heart, Download } from 'lucide-react';
 import { Tab } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../services/database';
@@ -11,9 +11,10 @@ interface SidebarProps {
   isOpen: boolean;
   toggleSidebar: () => void;
   onOpenTour?: () => void;
+  installApp?: () => void; // Prop para instalar PWA
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, toggleSidebar, onOpenTour }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, toggleSidebar, onOpenTour, installApp }) => {
   const { signOut, user } = useAuth();
   const [profileName, setProfileName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -117,6 +118,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
               <span>{item.label}</span>
             </button>
           ))}
+
+          {/* Botão de Instalação PWA (Visível apenas se disponível) */}
+          {installApp && (
+            <button
+              onClick={installApp}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium duration-300 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 hover:pl-5 mt-4 border border-dashed border-emerald-200"
+            >
+              <Download size={20} className="text-emerald-500" />
+              <span>Instalar App</span>
+            </button>
+          )}
         </nav>
 
         <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0 space-y-2">

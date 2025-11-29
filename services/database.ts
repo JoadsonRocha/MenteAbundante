@@ -34,6 +34,17 @@ const getCurrentUserId = async (): Promise<string | null> => {
   return data.user?.id || null;
 };
 
+// Helper para gerar UUID v4 compatível com Postgres
+export const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 // --- FUNÇÃO DE SINCRONIZAÇÃO (Sync Engine) ---
 export const syncLocalDataToSupabase = async () => {
   if (!supabase || !navigator.onLine) return;
@@ -59,7 +70,7 @@ export const syncLocalDataToSupabase = async () => {
         description: p.description,
         completed: p.completed,
         answer: p.answer,
-        completed_at: p.completed_at, // Adicionado campo de data
+        completed_at: p.completed_at, 
         user_id: userId 
       }));
       await supabase.from('plans').upsert(plansWithUser);
@@ -89,22 +100,24 @@ export const syncLocalDataToSupabase = async () => {
          statement: localProfile.statement,
          updated_at: new Date().toISOString()
       };
-
+      // Tenta upsert, com fallback se colunas novas não existirem
       const { error } = await supabase.from('profiles').upsert(payload);
-      
-      // No Sync silencioso, mantemos a defesa apenas para evitar erros de console em background,
-      // mas removemos a verificação de 'statement' para forçar a tentativa se a coluna existir.
       if (error && error.message?.includes('imagem')) {
          const { imagem, ...basicPayload } = payload;
          await supabase.from('profiles').upsert(basicPayload);
       }
     }
 
-    // 5. Sync Gratitude (Novo)
+    // 5. Sync Gratitude (Upload)
     const localGratitude = JSON.parse(localStorage.getItem(STORAGE_KEYS.GRATITUDE) || '[]');
     if (localGratitude.length > 0) {
-      const entriesWithUser = localGratitude.map((g: any) => ({ ...g, user_id: userId }));
-      await supabase.from('gratitude_entries').upsert(entriesWithUser);
+      // Filtra apenas entradas que tenham UUID válido para evitar erros de tipo no Postgres
+      const validEntries = localGratitude.filter((g: any) => g.id && g.id.length > 10);
+      const entriesWithUser = validEntries.map((g: any) => ({ ...g, user_id: userId }));
+      
+      if (entriesWithUser.length > 0) {
+        await supabase.from('gratitude_entries').upsert(entriesWithUser);
+      }
     }
 
   } catch (e) {
@@ -125,28 +138,16 @@ export const db = {
     const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (userId && parsed.id === userId) {
-        return parsed;
-      }
-      if (userId && parsed.id && parsed.id !== userId) {
-        localStorage.removeItem(STORAGE_KEYS.PROFILE);
-      }
+      if (userId && parsed.id === userId) return parsed;
+      if (userId && parsed.id && parsed.id !== userId) localStorage.removeItem(STORAGE_KEYS.PROFILE);
     }
 
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && userId) {
       try {
-        if (userId) {
-          const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-          if (!error && data) {
-            const currentLocal = saved ? JSON.parse(saved) : {};
-            const finalProfile = { ...data };
-            // Mescla inteligente: se o local tem dados e o remoto não, usa o local (assume que acabou de editar)
-            if (currentLocal.statement && !data.statement) finalProfile.statement = currentLocal.statement;
-            if (currentLocal.imagem && !data.imagem) finalProfile.imagem = currentLocal.imagem;
-            
-            localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(finalProfile));
-            return finalProfile;
-          }
+        const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+        if (!error && data) {
+          localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(data));
+          return data;
         }
       } catch (e) {}
     }
@@ -158,13 +159,9 @@ export const db = {
     const profileToSave = { ...profile, id: userId || undefined };
     localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profileToSave));
     
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('profile-updated'));
-    }
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('profile-updated'));
 
-    if (supabase && navigator.onLine) {
-      // Não usamos async IIFE aqui para permitir que o erro suba para o componente
-      if (userId) {
+    if (supabase && navigator.onLine && userId) {
         const payload = {
           id: userId,
           full_name: profile.full_name,
@@ -173,37 +170,27 @@ export const db = {
           statement: profile.statement,
           updated_at: new Date().toISOString()
         };
-        
         const { error } = await supabase.from('profiles').upsert(payload);
-        
         if (error) {
-          // Se o erro for especificamente sobre a coluna statement não existir,
-          // lançamos o erro para o UI avisar, em vez de engolir.
-          if (error.message?.includes('statement')) {
-            throw new Error("Erro de Banco de Dados: Coluna 'statement' ausente. Rode o SQL de migração.");
-          }
-          
-          // Fallback apenas para imagem pesada ou erro desconhecido, tentando salvar o básico
-          if (error.message?.includes('imagem') || error.message?.includes('Payload')) {
+          if (error.message?.includes('statement')) throw new Error("Erro de Banco de Dados: Coluna 'statement' ausente.");
+          if (error.message?.includes('imagem')) {
                 const { imagem, ...basicPayload } = payload;
                 await supabase.from('profiles').upsert(basicPayload);
           } else {
             throw error;
           }
         }
-      }
     }
   },
 
   // --- CHECKLIST ---
   async getTasks(): Promise<DailyTask[]> {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEYS.TASKS);
-      if (saved) {
-        if (navigator.onLine) syncLocalDataToSupabase(); 
-        return JSON.parse(saved);
-      }
-    } catch (e) {}
+    const saved = localStorage.getItem(STORAGE_KEYS.TASKS);
+    // Estratégia Cache-First para Tasks (performance)
+    if (saved) {
+      if (navigator.onLine) syncLocalDataToSupabase(); 
+      return JSON.parse(saved);
+    }
 
     if (supabase && navigator.onLine) {
       try {
@@ -341,20 +328,19 @@ export const db = {
 
   // --- CRENÇAS ---
   async getBeliefs(): Promise<BeliefEntry[]> {
+    const userId = await getCurrentUserId();
     const saved = localStorage.getItem(STORAGE_KEYS.BELIEFS);
+    
     if (saved) return JSON.parse(saved);
     
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && userId) {
        try {
-         const userId = await getCurrentUserId();
-         if (userId) {
            const { data } = await supabase.from('beliefs').select('*').eq('user_id', userId);
            if (data) {
               const reversed = data.reverse();
               localStorage.setItem(STORAGE_KEYS.BELIEFS, JSON.stringify(reversed));
               return reversed;
            }
-         }
        } catch (e) {}
     }
     return [];
@@ -376,41 +362,67 @@ export const db = {
     }
   },
 
-  // --- GRATIDÃO (NOVO) ---
+  // --- GRATIDÃO (MODIFICADO PARA NETWORK FIRST) ---
   async getGratitudeHistory(): Promise<GratitudeEntry[]> {
-    const saved = localStorage.getItem(STORAGE_KEYS.GRATITUDE);
-    if (saved) return JSON.parse(saved);
+    const userId = await getCurrentUserId();
 
-    if (supabase && navigator.onLine) {
+    // 1. Tentar Banco de Dados Primeiro (Network First) para garantir que temos dados de todos os dispositivos
+    if (supabase && navigator.onLine && userId) {
       try {
-        const userId = await getCurrentUserId();
-        if (userId) {
-          const { data } = await supabase.from('gratitude_entries').select('*').eq('user_id', userId).order('date', { ascending: false });
-          if (data) {
-            localStorage.setItem(STORAGE_KEYS.GRATITUDE, JSON.stringify(data));
-            return data;
-          }
+        const { data } = await supabase
+          .from('gratitude_entries')
+          .select('*')
+          .eq('user_id', userId)
+          .order('date', { ascending: false });
+
+        if (data) {
+          // Atualiza o cache local com a verdade do servidor
+          localStorage.setItem(STORAGE_KEYS.GRATITUDE, JSON.stringify(data));
+          return data;
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Erro ao buscar gratidão online, usando fallback local:", e);
+      }
     }
+
+    // 2. Fallback para LocalStorage se offline ou erro
+    const saved = localStorage.getItem(STORAGE_KEYS.GRATITUDE);
+    if (saved) {
+      const parsed = JSON.parse(saved) as GratitudeEntry[];
+      // Limpeza de segurança de sessão
+      if (userId && parsed.length > 0 && parsed[0].user_id && parsed[0].user_id !== userId) {
+        localStorage.removeItem(STORAGE_KEYS.GRATITUDE);
+        return [];
+      }
+      return parsed;
+    }
+
     return [];
   },
 
   async addGratitudeEntry(entry: GratitudeEntry): Promise<void> {
-    const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.GRATITUDE) || '[]');
-    const updated = [entry, ...current];
+    const userId = await getCurrentUserId();
+    const entryWithUser = userId ? { ...entry, user_id: userId } : entry;
+
+    // Salva Local
+    // Não usamos getGratitudeHistory aqui para evitar loop infinito de requests, lemos direto do storage ou memory
+    const saved = localStorage.getItem(STORAGE_KEYS.GRATITUDE);
+    const current = saved ? JSON.parse(saved) : [];
+    const updated = [entryWithUser, ...current];
     localStorage.setItem(STORAGE_KEYS.GRATITUDE, JSON.stringify(updated));
 
+    // Salva Remoto
     if (supabase && navigator.onLine) {
-      (async () => {
-        try {
-          const userId = await getCurrentUserId();
-          const entryWithUser = userId ? { ...entry, user_id: userId } : entry;
-          await supabase.from('gratitude_entries').insert(entryWithUser);
-        } catch (e) {
-          // Se tabela não existir, falha silenciosamente no remoto, mantém local
+      // Sem IIFE e sem try/catch silencioso total, para permitir debug se necessário
+      try {
+        const { error } = await supabase.from('gratitude_entries').insert(entryWithUser);
+        if (error) {
+           console.error("Erro Supabase Gratidão:", error);
+           // Se a tabela não existir, o usuário verá no console
         }
-      })();
+      } catch (e) {
+        console.error("Erro de conexão Gratidão:", e);
+      }
     }
   },
 

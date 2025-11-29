@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, Send, Sparkles, Calendar, BookOpen, Loader2 } from 'lucide-react';
-import { db } from '../services/database';
+import { db, generateUUID } from '../services/database';
 import { generateGratitudeAffirmation } from '../services/geminiService';
 import { GratitudeEntry } from '../types';
 
@@ -36,22 +36,23 @@ const GratitudeJournal: React.FC = () => {
     }
 
     const newEntry: GratitudeEntry = {
-      id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
-      user_id: '', // Preenchido no DB service
+      // IMPORTANTE: Usa o helper UUID para compatibilidade com o banco de dados Supabase
+      id: generateUUID(), 
+      user_id: '', // Será preenchido no serviço do banco
       text: entryText,
       ai_response: affirmation,
       date: new Date().toISOString()
     };
 
-    // Salva
+    // Salva no banco (e local storage)
     await db.addGratitudeEntry(newEntry);
     
-    // Atualiza estado local
+    // Atualiza estado visual
     setHistory([newEntry, ...history]);
     setEntryText('');
     setAnalyzing(false);
 
-    // Registra atividade para o gráfico
+    // Registra atividade para o gráfico de progresso
     await db.logActivity(1);
   };
 

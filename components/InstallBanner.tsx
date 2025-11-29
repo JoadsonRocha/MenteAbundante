@@ -2,53 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Download, X } from 'lucide-react';
 import Logo from './Logo';
 
-const InstallBanner: React.FC = () => {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+interface InstallBannerProps {
+  installAction: () => void;
+  deferredPrompt: any;
+}
+
+const InstallBanner: React.FC<InstallBannerProps> = ({ installAction, deferredPrompt }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const handleBeforeInstallPrompt = (e: any) => {
-      // Previne o mini-infobar padrão no mobile
-      e.preventDefault();
-      // Salva o evento para disparar depois
-      setDeferredPrompt(e);
-      // Mostra nosso banner UI
+    // Se temos um prompt de instalação disponível, mostramos o banner
+    if (deferredPrompt) {
       setIsVisible(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // Verifica se já foi instalado
-    window.addEventListener('appinstalled', () => {
-      setIsVisible(false);
-      setDeferredPrompt(null);
-      console.log('App instalado com sucesso');
-    });
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-
-    // Mostra o prompt nativo
-    deferredPrompt.prompt();
-
-    // Espera a escolha do usuário
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    if (outcome === 'accepted') {
-      console.log('Usuário aceitou instalação');
     } else {
-      console.log('Usuário recusou instalação');
+      setIsVisible(false);
     }
-    
-    // Limpa o prompt
-    setDeferredPrompt(null);
-    setIsVisible(false);
-  };
+  }, [deferredPrompt]);
 
   const handleDismiss = () => {
     setIsVisible(false);
@@ -77,7 +46,7 @@ const InstallBanner: React.FC = () => {
             <X size={18} />
           </button>
           <button
-            onClick={handleInstallClick}
+            onClick={installAction}
             className="bg-white text-slate-900 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-slate-100 transition-colors"
           >
             <Download size={14} /> Instalar
