@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Rocket, Clock, Loader2, Plus, CheckCircle2, Circle, Trash2, Calendar, Target, ChevronDown, ChevronUp, CloudCheck, Edit2, Check, X } from 'lucide-react';
+import { Rocket, Clock, Loader2, Plus, CheckCircle2, Circle, Trash2, Calendar, Target, ChevronDown, ChevronUp, Cloud, Edit2, Check, X } from 'lucide-react';
 import { db, generateUUID } from '../services/database';
 import { generateActionPlan } from '../services/geminiService';
 import { GoalPlan, GoalStep } from '../types';
@@ -233,7 +233,7 @@ const SmartPlanner: React.FC = () => {
                             </div>
                             <span className="text-slate-300">|</span>
                             <div className="flex items-center gap-1" title="Sincronizado com o Banco de Dados">
-                              <CloudCheck size={12} className="text-emerald-500" /> Salvo na nuvem
+                              <Cloud size={12} className="text-emerald-500" /> Salvo na nuvem
                             </div>
                          </div>
                       </div>
