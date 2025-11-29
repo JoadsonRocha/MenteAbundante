@@ -46,13 +46,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
     };
   }, [user, activeTab]); 
 
+  // Ordem atualizada dos itens do menu
   const menuItems: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: 'Início', icon: <LayoutDashboard size={20} /> },
-    { id: 'gratitude', label: 'Gratidão', icon: <Heart size={20} /> },
     { id: 'coach', label: 'AI Coach', icon: <MessageSquareText size={20} /> },
     { id: 'reprogram', label: 'Reprogramar', icon: <Brain size={20} /> },
     { id: 'plan', label: 'Plano 7 Dias', icon: <Calendar size={20} /> },
     { id: 'checklist', label: 'Checklist', icon: <CheckSquare size={20} /> },
+    { id: 'gratitude', label: 'Gratidão', icon: <Heart size={20} /> },
     { id: 'visualization', label: 'Visualização', icon: <Eye size={20} /> },
     { id: 'stats', label: 'Evolução', icon: <TrendingUp size={20} /> },
     { id: 'about', label: 'Sobre', icon: <Info size={20} /> },
