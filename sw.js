@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mindshift-v4-store-ready';
+const CACHE_NAME = 'mindrise-v4-store-ready';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

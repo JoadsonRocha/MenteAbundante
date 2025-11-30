@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, Brain, Trophy, ChevronRight, MessageSquareText, Calendar, Heart, Rocket, Wind, AlertCircle } from 'lucide-react';
+import { Target, Brain, Trophy, MessageSquareText, Calendar, Heart, Rocket, Wind, AlertCircle } from 'lucide-react';
 import { QUOTES } from '../constants';
 
 interface DashboardProps {
@@ -26,23 +26,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => 
           <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-3 md:mb-4 tracking-tight leading-tight">
             Mente Abundante <br/> <span className="text-[#F87A14]">& Vitoriosa</span>
           </h1>
-          <p className="text-slate-300 text-sm md:text-lg mb-6 md:mb-8 leading-relaxed max-w-lg md:max-w-none">
+          <p className="text-slate-300 text-sm md:text-lg leading-relaxed max-w-lg md:max-w-none">
             A verdadeira vitória começa antes da ação. Reprograme seus pensamentos e conquiste resultados extraordinários.
           </p>
-          <div className="flex flex-wrap gap-3 md:gap-4">
-            <button 
-              onClick={() => onChangeTab('reprogram')}
-              className="bg-[#F87A14] text-white px-5 py-2.5 md:px-6 md:py-3 text-sm md:text-base rounded-xl font-semibold hover:bg-orange-600 transition-colors shadow-lg shadow-orange-500/20 flex items-center gap-2"
-            >
-              Destravar Mente <ChevronRight size={16} />
-            </button>
-            <button 
-              onClick={() => onChangeTab('plan')}
-              className="bg-white/10 text-white px-5 py-2.5 md:px-6 md:py-3 text-sm md:text-base rounded-xl font-semibold hover:bg-white/20 transition-colors backdrop-blur-sm"
-            >
-              Plano 7 Dias
-            </button>
-          </div>
         </div>
       </div>
 

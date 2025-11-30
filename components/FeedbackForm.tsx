@@ -53,7 +53,7 @@ const FeedbackForm: React.FC = () => {
           </div>
           <h2 className="text-2xl font-bold text-slate-800 mb-2">Obrigado!</h2>
           <p className="text-slate-500 mb-8">
-            Seu feedback é fundamental para tornarmos o MindShift cada vez melhor para sua jornada.
+            Seu feedback é fundamental para tornarmos o MindRise cada vez melhor para sua jornada.
           </p>
           <button
             onClick={() => {
@@ -80,7 +80,7 @@ const FeedbackForm: React.FC = () => {
            Sua Opinião
         </h2>
         <p className="text-slate-500 max-w-lg mx-auto mt-2">
-          Ajude-nos a melhorar. O que você está achando do MindShift?
+          Ajude-nos a melhorar. O que você está achando do MindRise?
           Seu feedback é anônimo para outros usuários.
         </p>
       </div>

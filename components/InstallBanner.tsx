@@ -33,7 +33,7 @@ const InstallBanner: React.FC<InstallBannerProps> = ({ installAction, deferredPr
             <Logo size={40} />
           </div>
           <div>
-            <h4 className="font-bold text-sm">Instalar MindShift</h4>
+            <h4 className="font-bold text-sm">Instalar MindRise</h4>
             <p className="text-xs text-slate-400">Acesse offline e mais rápido</p>
           </div>
         </div>

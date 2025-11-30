@@ -3,9 +3,9 @@ import { GoogleGenAI } from "@google/genai";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // --- CONTEXTO RAG SIMULADO PARA O AGENTE DE SUPORTE ---
-const MINDSHIFT_KNOWLEDGE_BASE = `
-VOCÊ É O "AGENTE DE SUPORTE MINDSHIFT". 
-Sua função é atuar como um especialista técnico do app "MindShift - Mente Abundante".
+const MINDRISE_KNOWLEDGE_BASE = `
+VOCÊ É O "AGENTE DE SUPORTE MINDRISE". 
+Sua função é atuar como um especialista técnico do app "MindRise - Mente Abundante".
 Analise o problema do usuário e forneça a solução exata baseada na lista abaixo.
 
 === BASE DE CONHECIMENTO TÉCNICO E SOLUÇÃO DE PROBLEMAS (TROUBLESHOOTING) ===
@@ -32,7 +32,7 @@ Analise o problema do usuário e forneça a solução exata baseada na lista aba
 
 4. **INSTALAÇÃO (PWA)**
    - **Sintoma:** "Como baixar o app?", "Não acho na loja".
-   - **Solução:** O MindShift é um Web App Progressivo (PWA). 
+   - **Solução:** O MindRise é um Web App Progressivo (PWA). 
      - No Android (Chrome): Clique nos 3 pontinhos -> "Instalar aplicativo" ou "Adicionar à tela inicial".
      - No iOS (Safari): Clique no botão Compartilhar (quadrado com seta) -> Role para baixo -> "Adicionar à Tela de Início".
 
@@ -52,7 +52,7 @@ Analise o problema do usuário e forneça a solução exata baseada na lista aba
 
 8. **PRIVACIDADE E EXCLUSÃO**
    - **Sintoma:** "Quero apagar meus dados".
-   - **Solução:** Isso é um direito seu. Solicite via e-mail para privacy@mindshift.app ou abra um ticket aqui solicitando a exclusão completa.
+   - **Solução:** Isso é um direito seu. Solicite via e-mail para privacy@mindrise.app ou abra um ticket aqui solicitando a exclusão completa.
 
 === DIRETRIZES DE ATENDIMENTO ===
 - Se a resposta estiver acima, explique passo a passo, de forma amigável.
@@ -126,7 +126,7 @@ export const chatWithSupportAgent = async (history: string[], message: string): 
       
       Cliente: ${message}`,
       config: {
-        systemInstruction: MINDSHIFT_KNOWLEDGE_BASE,
+        systemInstruction: MINDRISE_KNOWLEDGE_BASE,
         temperature: 0.3, // Baixa temperatura para respostas mais precisas/técnicas
       }
     });
@@ -275,7 +275,7 @@ export const generateActionPlan = async (goal: string, timeframe: string): Promi
   }
 };
 
-// --- NOVO: GERADOR DE MEDITAÇÃO SOS OTIMIZADO (5 MINUTOS) ---
+// --- NOVO: GERADOR DE MEDITAÇÃO SOS OTIMIZADO ---
 export const generateMeditationScript = async (): Promise<{ title: string, steps: { label: string, text: string, pauseSeconds: number }[] } | null> => {
   if (!process.env.API_KEY) return null;
 
@@ -286,23 +286,20 @@ export const generateMeditationScript = async (): Promise<{ title: string, steps
       Crie um roteiro de meditação guiada INÉDITO para alívio de ansiedade.
       
       CONTEXTO: Data atual ${new Date().toISOString()} (Use isso para variar o conteúdo).
-      REQUISITO FUNDAMENTAL: A sessão deve durar NO MÍNIMO 5 MINUTOS.
-      Para isso, gere textos longos nas etapas intermediárias e pausas estratégicas.
+      NOTA: O usuário JÁ OUVIU uma introdução de respiração. Comece direto no relaxamento corporal.
 
-      ESTRUTURA OBRIGATÓRIA (5 Etapas):
+      ESTRUTURA OBRIGATÓRIA (4 Etapas):
       
-      1. INTRODUÇÃO RÁPIDA (Máx 40 palavras): Foco apenas na respiração inicial. (Esta etapa deve ser curta para o áudio carregar instantaneamente). PauseSeconds: 5.
+      1. RELAXAMENTO PROFUNDO (Aprox 130 palavras): Escaneamento corporal detalhado. PauseSeconds: 20.
       
-      2. RELAXAMENTO PROFUNDO (Aprox 130-150 palavras): Escaneamento corporal detalhado, soltando tensões dos pés à cabeça. Use ritmo lento. PauseSeconds: 20.
+      2. LUGAR SEGURO (Aprox 130 palavras): Visualização criativa. PauseSeconds: 25.
       
-      3. APROFUNDAMENTO (Aprox 130-150 palavras): Técnica de visualização (lugar seguro, luz, natureza) ou mindfulness. PauseSeconds: 25.
+      3. REPROGRAMAÇÃO (Aprox 100 palavras): Afirmações de controle e paz. PauseSeconds: 20.
       
-      4. REPROGRAMAÇÃO E ANCORAGEM (Aprox 120 palavras): Afirmações de segurança, controle e paz. PauseSeconds: 20.
-      
-      5. RETORNO SUAVE (Aprox 80 palavras): Volta gradual à consciência, mantendo a calma. PauseSeconds: 5.
+      4. RETORNO SUAVE (Aprox 80 palavras): Volta gradual à consciência. PauseSeconds: 5.
 
       IMPORTANTE:
-      - O conteúdo deve ser SEMPRE NOVO e ÚNICO. Use metáforas diferentes a cada geração.
+      - O conteúdo deve ser SEMPRE NOVO e ÚNICO.
       - Texto em primeira pessoa ("Eu guio você") ou direta ("Você sente").
       - Tom de voz: Lento, calmo, hipnótico, acolhedor.
 
@@ -310,13 +307,13 @@ export const generateMeditationScript = async (): Promise<{ title: string, steps
       {
         "title": "Título Criativo da Sessão",
         "steps": [
-          { "label": "Respiração", "text": "...", "pauseSeconds": 5 },
+          { "label": "Relaxamento", "text": "...", "pauseSeconds": 20 },
           ...
         ]
       }`,
       config: {
         responseMimeType: "application/json",
-        temperature: 1.0 // Alta temperatura para garantir que seja sempre diferente
+        temperature: 0.9 // Alta temperatura para criatividade
       }
     });
 

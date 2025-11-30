@@ -20,7 +20,7 @@ const AICoach: React.FC = () => {
         // Mensagem de boas-vindas padrão se não houver histórico
         setMessages([{ 
           role: 'model', 
-          text: 'Olá! Sou seu Mentor MindShift. Em que posso te ajudar hoje? Podemos falar sobre disciplina, medos ou estratégias para vencer.' 
+          text: 'Olá! Sou seu Mentor MindRise. Em que posso te ajudar hoje? Podemos falar sobre disciplina, medos ou estratégias para vencer.' 
         }]);
       }
     };

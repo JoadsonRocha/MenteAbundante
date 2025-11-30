@@ -11,7 +11,7 @@ const About: React.FC<AboutProps> = ({ navigateTo }) => {
     <div className="max-w-4xl mx-auto space-y-6 md:space-y-8 animate-fade-in pb-8">
       {/* Header */}
       <div className="text-center mb-6 md:mb-10 px-4">
-        <h2 className="text-3xl md:text-4xl font-extrabold text-[#F87A14] mb-3 md:mb-4">Sobre o MindShift</h2>
+        <h2 className="text-3xl md:text-4xl font-extrabold text-[#F87A14] mb-3 md:mb-4">Sobre o MindRise</h2>
         <p className="text-slate-500 max-w-2xl mx-auto text-sm md:text-base">
           Uma ferramenta digital para despertar seu potencial, reprogramar crenças e construir uma mentalidade vencedora.
         </p>
@@ -65,7 +65,7 @@ const About: React.FC<AboutProps> = ({ navigateTo }) => {
           <section>
             <h4 className="text-lg md:text-xl font-bold text-slate-800 mb-3 md:mb-4">Nosso Propósito</h4>
             <p className="text-slate-600 leading-relaxed text-sm md:text-base">
-              Criamos o MindShift para ser seu companheiro diário de evolução.
+              Criamos o MindRise para ser seu companheiro diário de evolução.
             </p>
           </section>
 

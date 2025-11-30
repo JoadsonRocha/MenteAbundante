@@ -106,7 +106,7 @@ const AuthScreen: React.FC = () => {
             <div className="mb-4 shadow-lg shadow-orange-500/20 rounded-3xl">
               <Logo size={72} />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">MindShift</h1>
+            <h1 className="text-2xl font-bold text-white mb-2">MindRise</h1>
             <p className="text-slate-400 text-sm">Mentalidade Abundante & Vitoriosa</p>
           </div>
         </div>

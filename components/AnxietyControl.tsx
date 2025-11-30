@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Play, Pause, RotateCcw, Rocket, CheckCircle2, Loader2, Volume2, Wind, Sparkles } from 'lucide-react';
+import { X, Play, Pause, RotateCcw, Rocket, CheckCircle2, Loader2, Volume2, Wind, Sparkles, Lock } from 'lucide-react';
 import { generateGuidedAudio, generateMeditationScript } from '../services/geminiService';
 
 interface AnxietyControlProps {
@@ -7,51 +7,54 @@ interface AnxietyControlProps {
   onNavigateToPlanner: () => void;
 }
 
-// Fallback robusto caso a API falhe (5 min aprox)
+// Passo de início imediato (enquanto a IA gera o resto)
+const QUICK_START_STEP = {
+  label: "Conexão Imediata",
+  text: "Respire fundo agora. Segure o ar... e solte. Estou aqui. Feche os olhos e apenas ouça minha voz enquanto nos conectamos.",
+  pauseSeconds: 3
+};
+
+// Fallback robusto caso a API falhe totalmente
 const FALLBACK_STEPS = [
   {
-    label: "Conexão Inicial",
-    text: "Olá. Estou aqui com você. Vamos começar respirando fundo. Inspire pelo nariz... e solte devagar pela boca. Sinta o ar entrando e saindo. Deixe o mundo lá fora por alguns instantes. Este é o seu momento de paz.",
-    pauseSeconds: 5
-  },
-  {
-    label: "Escaneamento Corporal",
-    text: "Agora, traga sua atenção para o seu corpo. Comece pelos pés. Sinta se há alguma tensão e solte. Suba para as pernas, relaxe os joelhos. Solte o quadril, relaxe o abdômen. Sinta os ombros descendo, longe das orelhas. Destrave o maxilar. Sinta seu corpo ficando pesado e profundamente relaxado na cadeira ou onde estiver deitado. Você está seguro aqui.",
-    pauseSeconds: 20
-  },
-  {
-    label: "Lugar Seguro",
-    text: "Imagine agora que você está em um lugar onde se sente completamente em paz. Pode ser uma praia deserta, uma floresta tranquila ou um campo aberto. Visualize as cores, sinta a temperatura agradável, ouça os sons suaves deste lugar. Deixe essa paisagem preencher sua mente, afastando qualquer pensamento intrusivo. Você é o observador calmo deste cenário perfeito.",
-    pauseSeconds: 25
-  },
-  {
-    label: "Afirmação de Controle",
-    text: "Enquanto respira calmamente, repita mentalmente: 'Eu estou no controle. Minha mente é um lugar de paz. Eu sou maior que qualquer ansiedade'. Sinta a força dessas palavras ancorando no seu peito. Você tem a capacidade de gerar calma a qualquer momento.",
+    label: "Aterramento",
+    text: "Sinta seus pés no chão. Sinta o peso do seu corpo na cadeira. Você está seguro. Nada pode te atingir agora. Foque apenas na sensação de apoio e estabilidade.",
     pauseSeconds: 15
   },
   {
+    label: "Visualização",
+    text: "Imagine uma luz azul suave descendo sobre sua cabeça, relaxando sua testa, seus olhos e seu maxilar. Essa luz dissolve toda a tensão, descendo pelos ombros até as mãos.",
+    pauseSeconds: 20
+  },
+  {
+    label: "Afirmação",
+    text: "Repita mentalmente: Eu estou no controle. Minha paz é inegociável. Eu resolvo uma coisa de cada vez.",
+    pauseSeconds: 10
+  },
+  {
     label: "Retorno",
-    text: "Lentamente, comece a trazer sua atenção de volta para o ambiente ao seu redor. Mexa suavemente os dedos das mãos e dos pés. Respire fundo uma última vez, cheio de gratidão por este momento. Quando estiver pronto, abra os olhos, sentindo-se renovado e presente.",
+    text: "Respire fundo mais uma vez. Quando estiver pronto, abra os olhos, sentindo-se mais leve e capaz.",
     pauseSeconds: 5
   }
 ];
 
 const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPlanner }) => {
   // Estados de Sessão
-  const [sessionSteps, setSessionSteps] = useState<any[]>([]);
-  const [sessionTitle, setSessionTitle] = useState("Sintonizando...");
-  const [isGeneratingScript, setIsGeneratingScript] = useState(true);
+  // Começamos JÁ com o passo rápido na lista para tocar instantaneamente
+  const [sessionSteps, setSessionSteps] = useState<any[]>([QUICK_START_STEP]);
+  const [sessionTitle, setSessionTitle] = useState("Iniciando...");
+  const [isGeneratingRest, setIsGeneratingRest] = useState(true); // Controla o carregamento dos passos seguintes
   
   // Estados de Playback
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
   
-  // Audio Queue: Armazena buffers prontos. Indexado pela etapa.
+  // Audio Queue
   const [audioBuffers, setAudioBuffers] = useState<{[key: number]: AudioBuffer}>({});
   const [loadingAudioIndex, setLoadingAudioIndex] = useState<number | null>(null);
 
-  // Estados de Pausa (Silêncio entre etapas)
+  // Estados de Pausa
   const [isInPause, setIsInPause] = useState(false);
   const [pauseTimeLeft, setPauseTimeLeft] = useState(0);
 
@@ -59,12 +62,40 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const isMounted = useRef(true);
-  const stepsRef = useRef<any[]>([]); // Ref para acesso dentro de closures/timers
+  const stepsRef = useRef<any[]>([QUICK_START_STEP]);
+  const wakeLockRef = useRef<any>(null);
 
-  // --- INICIALIZAÇÃO ---
+  // --- WAKE LOCK (Manter tela ligada) ---
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+          console.log('Tela mantida ativa (WakeLock)');
+        }
+      } catch (err) {
+        console.log('WakeLock não suportado ou negado', err);
+      }
+    };
+    requestWakeLock();
+
+    return () => {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release();
+      }
+    };
+  }, []);
+
+  // --- INICIALIZAÇÃO HÍBRIDA ---
   useEffect(() => {
     isMounted.current = true;
-    startNewSession();
+    
+    // 1. Inicia áudio do passo 0 (Quick Start) IMEDIATAMENTE
+    initAudioContext();
+    preloadAudio(0); // Baixa e toca o passo 0 assim que possível
+
+    // 2. Dispara geração da IA em paralelo para os próximos passos
+    loadFullScript();
 
     return () => {
       isMounted.current = false;
@@ -75,22 +106,22 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
   // Monitora buffer inicial para AUTO-PLAY IMEDIATO
   useEffect(() => {
     if (currentStepIndex === 0 && !isPlaying && !isFinished && !isInPause) {
-       // Se o buffer 0 já existe, toca imediatamente
        if (audioBuffers[0]) {
          playStep(0);
        }
     }
   }, [audioBuffers, currentStepIndex, isPlaying, isFinished, isInPause]);
 
-  // Monitora progresso e faz pre-load do próximo áudio
+  // Pre-load inteligente (buffer ahead)
   useEffect(() => {
-    if (sessionSteps.length > 0 && !isGeneratingScript) {
-      // Tenta baixar o áudio atual e os próximos 2 (buffer ahead)
-      preloadAudio(currentStepIndex);
-      preloadAudio(currentStepIndex + 1);
-      preloadAudio(currentStepIndex + 2);
+    // Tenta baixar o próximo áudio assim que disponível
+    if (sessionSteps.length > 1) {
+      const nextIdx = currentStepIndex + 1;
+      if (nextIdx < sessionSteps.length && !audioBuffers[nextIdx]) {
+        preloadAudio(nextIdx);
+      }
     }
-  }, [currentStepIndex, sessionSteps, isGeneratingScript]);
+  }, [currentStepIndex, sessionSteps, audioBuffers]);
 
   // Timer de Pausa
   useEffect(() => {
@@ -100,48 +131,62 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
         setPauseTimeLeft((prev) => prev - 1);
       }, 1000);
     } else if (isInPause && pauseTimeLeft === 0) {
-      // Fim da pausa, vai para o próximo passo
       setIsInPause(false);
-      const nextIndex = currentStepIndex + 1;
-      if (nextIndex < sessionSteps.length) {
-         setCurrentStepIndex(nextIndex);
-         playStep(nextIndex);
-      } else {
-         setIsFinished(true);
-         setIsPlaying(false);
-      }
+      advanceStep();
     }
     return () => clearInterval(interval);
-  }, [isInPause, pauseTimeLeft, currentStepIndex, sessionSteps]);
+  }, [isInPause, pauseTimeLeft]);
 
-  const startNewSession = async () => {
-    setIsGeneratingScript(true);
-    setSessionSteps([]);
-    setAudioBuffers({});
-    setCurrentStepIndex(0);
-    setIsFinished(false);
-    setIsInPause(false);
-    setSessionTitle("Criando sessão...");
+  const loadFullScript = async () => {
+    setIsGeneratingRest(true);
     
-    // Inicializa contexto de áudio imediatamente no clique (user gesture)
-    initAudioContext();
-    
-    // 1. Gera Roteiro Dinâmico
+    // Gera o roteiro completo da IA
     const script = await generateMeditationScript();
     
     if (isMounted.current) {
       if (script && script.steps.length > 0) {
         setSessionTitle(script.title);
-        setSessionSteps(script.steps);
-        stepsRef.current = script.steps;
+        // Mantém o passo 0 (Quick Start) e adiciona os novos
+        const newSteps = [QUICK_START_STEP, ...script.steps];
+        setSessionSteps(newSteps);
+        stepsRef.current = newSteps;
       } else {
-        setSessionTitle("Sessão de Emergência (Offline)");
-        setSessionSteps(FALLBACK_STEPS);
-        stepsRef.current = FALLBACK_STEPS;
+        // Fallback se IA falhar
+        setSessionTitle("Sessão de Emergência");
+        const newSteps = [QUICK_START_STEP, ...FALLBACK_STEPS];
+        setSessionSteps(newSteps);
+        stepsRef.current = newSteps;
       }
-      setIsGeneratingScript(false);
-      
-      // A lógica de useEffect acima cuidará do playStep(0) assim que o buffer chegar
+      setIsGeneratingRest(false);
+      // O preload do passo 1 (agora o primeiro da IA) será acionado pelo useEffect
+    }
+  };
+
+  const advanceStep = () => {
+    const nextIndex = currentStepIndex + 1;
+    
+    // Se chegou ao fim ou se o próximo passo ainda não existe (IA demorando muito)
+    if (nextIndex >= stepsRef.current.length) {
+      if (isGeneratingRest) {
+        // Se ainda está gerando, mostra loading e espera (não finaliza)
+        setLoadingAudioIndex(nextIndex); // UI de loading
+        return; 
+      }
+      setIsFinished(true);
+      setIsPlaying(false);
+    } else {
+      setCurrentStepIndex(nextIndex);
+      playStep(nextIndex);
+    }
+  };
+
+  const initAudioContext = () => {
+    if (!audioContextRef.current) {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      audioContextRef.current = new AudioContextClass();
+    }
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume().catch(() => {});
     }
   };
 
@@ -151,17 +196,6 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
       sourceRef.current = null;
     }
     setIsPlaying(false);
-  };
-
-  const initAudioContext = () => {
-    if (!audioContextRef.current) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      audioContextRef.current = new AudioContextClass();
-    }
-    // Sempre tenta resumir, pois pode estar suspenso por falta de interação prévia
-    if (audioContextRef.current.state === 'suspended') {
-      audioContextRef.current.resume().catch(e => console.log("Context resume pending user interaction", e));
-    }
   };
 
   const addWavHeader = (pcmData: Uint8Array, sampleRate: number, numChannels: number): ArrayBuffer => {
@@ -190,9 +224,8 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
   };
 
   const preloadAudio = async (index: number) => {
-    // Validações
     if (index >= stepsRef.current.length) return;
-    if (audioBuffers[index]) return; // Já carregado
+    if (audioBuffers[index]) return; // Já tem
     
     try {
       const stepText = stepsRef.current[index].text;
@@ -209,9 +242,12 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
          if (!audioContextRef.current) initAudioContext();
          if (audioContextRef.current) {
             const decoded = await audioContextRef.current.decodeAudioData(wavBuffer);
-            
-            // Salva no state e isso disparará o useEffect de Auto-Play se for o step 0
             setAudioBuffers(prev => ({ ...prev, [index]: decoded }));
+            
+            // Se estava travado esperando este áudio, toca agora
+            if (index === currentStepIndex && isPlaying) {
+               playStep(index);
+            }
          }
       }
     } catch (e) {
@@ -220,30 +256,19 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
   };
 
   const playStep = async (index: number) => {
-    // Se ainda está gerando script, aguarda (mas não deve acontecer devido à lógica)
-    if (isGeneratingScript) return;
-    
-    // Se acabou
-    if (index >= stepsRef.current.length) {
-      setIsFinished(true);
-      setIsPlaying(false);
-      return;
-    }
-
     stopAudio();
     initAudioContext();
     
-    // Verifica se tem buffer
     const buffer = audioBuffers[index];
     
     if (!buffer) {
        setLoadingAudioIndex(index);
        await preloadAudio(index);
+       // O preloadAudio vai chamar playStep novamente se for o index atual
        return; 
     }
 
     setLoadingAudioIndex(null);
-
     if (!audioContextRef.current) return;
 
     const source = audioContextRef.current.createBufferSource();
@@ -252,17 +277,12 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
     
     source.onended = () => {
       if (isMounted.current) {
-        // Áudio terminou. Verifica pausa.
-        const pauseSecs = stepsRef.current[index].pauseSeconds || 0;
-        
+        const pauseSecs = stepsRef.current[index]?.pauseSeconds || 0;
         if (pauseSecs > 0) {
            setIsInPause(true);
            setPauseTimeLeft(pauseSecs);
-           setIsPlaying(true); // Mantém estado visual de 'ativo' durante pausa
         } else {
-           const next = index + 1;
-           setCurrentStepIndex(next);
-           playStep(next);
+           advanceStep();
         }
       }
     };
@@ -282,20 +302,40 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
     }
   };
 
-  const handleClose = () => {
-    stopAudio();
-    onClose();
+  const handleCloseSafe = () => {
+    if (!isFinished && isPlaying) {
+      if (confirm("Deseja interromper a sessão de alívio?")) {
+        stopAudio();
+        onClose();
+      }
+    } else {
+      stopAudio();
+      onClose();
+    }
+  };
+
+  const restart = () => {
+    setSessionSteps([QUICK_START_STEP]); // Reset para rápido
+    setAudioBuffers({});
+    setCurrentStepIndex(0);
+    setIsFinished(false);
+    setIsInPause(false);
+    setIsGeneratingRest(true);
+    
+    // Reinicia lógica híbrida
+    preloadAudio(0);
+    loadFullScript();
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-100px)] w-full bg-slate-900 rounded-3xl overflow-hidden relative shadow-2xl animate-fade-in">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-100px)] w-full bg-slate-900 rounded-3xl overflow-hidden relative shadow-2xl animate-fade-in select-none">
       
-      {/* Botão Fechar */}
+      {/* Botão Fechar Protegido */}
       <button 
-        onClick={handleClose}
-        className="absolute top-6 right-6 text-slate-400 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors z-50"
+        onClick={handleCloseSafe}
+        className="absolute top-6 right-6 text-slate-400 hover:text-white p-3 rounded-full bg-white/5 hover:bg-white/10 transition-colors z-50"
       >
-        <X size={32} />
+        <X size={28} />
       </button>
 
       <div className="w-full max-w-md p-8 flex flex-col items-center justify-center relative z-10">
@@ -303,12 +343,11 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
         {/* Visual Central */}
         {!isFinished && (
           <div className="relative mb-12 flex items-center justify-center h-64 w-64">
-             {/* Círculo Guia */}
+             {/* Círculo Guia Animado */}
              <div className={`absolute inset-0 bg-blue-500/20 rounded-full blur-3xl transition-all duration-[4000ms] ease-in-out ${isPlaying && !isInPause ? 'scale-150 opacity-60' : 'scale-100 opacity-30'}`}></div>
              
              <div className={`w-32 h-32 bg-gradient-to-br from-blue-400 to-cyan-300 rounded-full shadow-[0_0_60px_rgba(56,189,248,0.4)] flex items-center justify-center transition-all duration-[4000ms] ease-in-out ${isPlaying && !isInPause ? 'scale-125' : 'scale-100'} ${isInPause ? 'opacity-50' : 'opacity-100'}`}>
-                {/* Mostra Loader se estiver gerando script OU se não tiver buffer do Passo 0 ainda */}
-                {(isGeneratingScript || (currentStepIndex === 0 && !audioBuffers[0])) ? (
+                {loadingAudioIndex !== null ? (
                   <Loader2 className="animate-spin text-white" size={32} />
                 ) : (
                   <Wind className="text-white opacity-80" size={40} />
@@ -316,32 +355,29 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
              </div>
              
              {/* Texto de Status */}
-             <div className="absolute -bottom-16 text-center w-full min-h-[60px]">
-                {/* Estado 1: Gerando Script (IA Texto) */}
-                {isGeneratingScript ? (
-                   <p className="text-blue-200 font-medium animate-pulse flex flex-col items-center gap-1">
-                     <Sparkles size={16} /> Preparando sessão (5min)...
-                   </p>
-                ) : 
-                /* Estado 2: Baixando Áudio Inicial */
-                (loadingAudioIndex !== null || (currentStepIndex === 0 && !audioBuffers[0])) ? (
-                   <p className="text-blue-200 font-medium animate-pulse">Iniciando áudio...</p>
-                ) : 
-                /* Estado 3: Pausa Silenciosa */
-                isInPause ? (
+             <div className="absolute -bottom-20 text-center w-full min-h-[60px]">
+                {loadingAudioIndex !== null ? (
+                   <p className="text-blue-200 font-medium animate-pulse">Carregando voz...</p>
+                ) : isInPause ? (
                    <div className="flex flex-col items-center animate-in fade-in">
                       <p className="text-blue-100 font-bold text-lg mb-1">{pauseTimeLeft}s</p>
-                      <p className="text-blue-300 text-xs uppercase tracking-widest">Silêncio para Absorver</p>
+                      <p className="text-blue-300 text-xs uppercase tracking-widest">Respire & Absorva</p>
                    </div>
-                ) : 
-                /* Estado 4: Tocando */
-                (
+                ) : (
                    <div className="animate-in fade-in">
-                      <h3 className="text-white font-bold text-lg mb-1">{sessionTitle}</h3>
-                      <p className="text-blue-200 text-sm tracking-wide uppercase">
-                         {sessionSteps[currentStepIndex]?.label || "Carregando..."}
+                      <h3 className="text-white font-bold text-lg mb-1">{isGeneratingRest ? "Conexão Inicial" : sessionTitle}</h3>
+                      <p className="text-blue-200 text-sm tracking-wide uppercase px-4 leading-tight">
+                         {sessionSteps[currentStepIndex]?.label || "Preparando..."}
                       </p>
                    </div>
+                )}
+                
+                {/* Indicador de IA em background */}
+                {isGeneratingRest && (
+                  <div className="mt-2 flex items-center justify-center gap-1.5 text-[10px] text-blue-400/60">
+                    <Sparkles size={10} />
+                    <span>Criando sessão personalizada...</span>
+                  </div>
                 )}
              </div>
           </div>
@@ -353,9 +389,9 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
             <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/20">
               <CheckCircle2 size={40} className="text-white" />
             </div>
-            <h3 className="text-2xl font-bold text-white mb-2">Sessão Concluída.</h3>
+            <h3 className="text-2xl font-bold text-white mb-2">Você está no controle.</h3>
             <p className="text-slate-300 max-w-xs mx-auto">
-              Você dedicou 5 minutos preciosos para sua mente. Leve essa calma para o seu dia.
+              Sua mente está mais calma agora. Leve essa sensação para o próximo desafio.
             </p>
           </div>
         )}
@@ -363,8 +399,7 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
         {/* Controles */}
         <div className="w-full space-y-4">
           
-          {/* Botão Play/Pause (Só aparece se já carregou o primeiro buffer e não está gerando script) */}
-          {!isFinished && !isGeneratingScript && audioBuffers[0] && (
+          {!isFinished && audioBuffers[currentStepIndex] && (
             <div className="flex justify-center mb-8">
               <button
                 onClick={togglePlay}
@@ -382,35 +417,36 @@ const AnxietyControl: React.FC<AnxietyControlProps> = ({ onClose, onNavigateToPl
                 className="w-full py-4 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white rounded-2xl font-bold shadow-lg shadow-blue-500/20 flex items-center justify-center gap-3 transition-all transform hover:-translate-y-1"
               >
                 <Rocket size={20} />
-                Transformar Ansiedade em Ação
+                Agir Agora
               </button>
               
               <button
-                onClick={startNewSession}
+                onClick={restart}
                 className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl font-medium flex items-center justify-center gap-2 transition-colors"
               >
                 <RotateCcw size={18} />
-                Nova Sessão (5 min)
+                Repetir Sessão
               </button>
               
               <button
-                onClick={handleClose}
+                onClick={onClose}
                 className="w-full py-3 text-slate-500 hover:text-white text-sm transition-colors"
               >
-                Voltar à tela inicial
+                Voltar
               </button>
             </div>
           )}
           
-          {/* Indicador de Progresso (Dots) */}
-          {!isFinished && !isGeneratingScript && (
-            <div className="flex justify-center gap-2 mt-4">
+          {/* Indicador de Progresso (Visualização Discreta) */}
+          {!isFinished && (
+            <div className="flex justify-center gap-1.5 mt-4 opacity-50">
               {sessionSteps.map((_, idx) => (
                 <div 
                   key={idx} 
-                  className={`h-1.5 rounded-full transition-all duration-500 ${idx === currentStepIndex ? 'w-6 bg-blue-400' : idx < currentStepIndex ? 'w-2 bg-blue-800' : 'w-2 bg-slate-800'}`} 
+                  className={`h-1 rounded-full transition-all duration-500 ${idx === currentStepIndex ? 'w-4 bg-white' : 'w-1 bg-slate-600'}`} 
                 />
               ))}
+              {isGeneratingRest && <div className="w-1 h-1 rounded-full bg-slate-700 animate-pulse ml-1" />}
             </div>
           )}
         </div>
