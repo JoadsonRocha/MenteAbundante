@@ -56,10 +56,7 @@ const ProgressStats: React.FC = () => {
     if (permission === 'granted') {
       setRemindersEnabled(true);
       localStorage.setItem('mente_reminders', 'true');
-      new Notification("MindRise", {
-        body: "Notificações ativadas! Lembraremos você de manter o foco.",
-        icon: "https://cdn-icons-png.flaticon.com/512/3062/3062634.png"
-      });
+      // Notificação manual removida conforme solicitação
     } else {
       setRemindersEnabled(false);
       localStorage.setItem('mente_reminders', 'false');

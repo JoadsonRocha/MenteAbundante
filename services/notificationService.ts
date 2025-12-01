@@ -14,6 +14,10 @@ export const initOneSignal = async (userId?: string) => {
       allowLocalhostAsSecureOrigin: true, 
       serviceWorkerPath: "sw.js", 
       serviceWorkerParam: { scope: "/" },
+      // Desabilita a notificação automática de boas-vindas "Obrigado por se inscrever"
+      welcomeNotification: {
+        disable: true
+      },
       notifyButton: {
         enable: false, // Usamos nossa própria UI
       },
