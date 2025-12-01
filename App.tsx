@@ -22,6 +22,7 @@ import AnxietyControl from './components/AnxietyControl';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
+import { initOneSignal } from './services/notificationService';
 
 // Componente interno para gerenciar o estado da aplicação pós-login
 const AppContent: React.FC = () => {
@@ -45,6 +46,9 @@ const AppContent: React.FC = () => {
     setActiveTab('dashboard');
 
     if (user) {
+      // 1. Inicializa OneSignal e vincula ao usuário
+      initOneSignal(user.id);
+
       // 2. Forçar sincronização imediata
       syncLocalDataToSupabase();
       
@@ -91,21 +95,6 @@ const AppContent: React.FC = () => {
         const hasSeenOnboarding = localStorage.getItem('mente_onboarding_completed');
         if (!hasSeenOnboarding) {
           setShowOnboarding(true);
-        }
-
-        // Check Notification Logic
-        const remindersEnabled = localStorage.getItem('mente_reminders') === 'true';
-        if (remindersEnabled && Notification.permission === 'granted') {
-          const logs = await db.getActivityLogs();
-          const today = new Date().toISOString().split('T')[0];
-          const hasActivityToday = logs.some(l => l.date === today && l.count > 0);
-
-          if (!hasActivityToday) {
-            new Notification("Mente Abundante", {
-              body: "Você ainda não completou suas tarefas de hoje. Mantenha o foco!",
-              icon: "https://cdn-icons-png.flaticon.com/512/3062/3062634.png"
-            });
-          }
         }
       };
       

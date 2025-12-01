@@ -1,4 +1,7 @@
-const CACHE_NAME = 'mindrise-v4-store-ready';
+// Importante: O OneSignal requer este script no topo para capturar eventos de 'push'
+importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDKWorker.js');
+
+const CACHE_NAME = 'mindrise-v5-store-ready';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -37,13 +40,15 @@ self.addEventListener('activate', (event) => {
 
 // Fetch com Estratégia de Fallback para SPA
 self.addEventListener('fetch', (event) => {
-  // Ignorar requisições externas (API, Supabase, Google Fonts, etc)
-  if (!event.request.url.startsWith(self.location.origin)) {
+  const url = new URL(event.request.url);
+
+  // Ignorar requisições externas (API, Supabase, Google Fonts) e especificamente OneSignal
+  if (!url.origin.startsWith(self.location.origin) || url.href.includes('onesignal.com')) {
     return;
   }
 
   // Ignorar API calls locais se houver
-  if (event.request.url.includes('/api/')) {
+  if (url.pathname.startsWith('/api/')) {
     return;
   }
 

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Save, Key, LogOut, CheckCircle, AlertCircle, Loader2, Sparkles, Camera, ScrollText, PenTool } from 'lucide-react';
+import { User, Mail, Save, Key, LogOut, CheckCircle, AlertCircle, Loader2, Sparkles, Camera, ScrollText, PenTool, Bell, BellRing } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { db, supabase } from '../services/database';
 import { UserProfile } from '../types';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
+import { requestNotificationPermission, isPushEnabled } from '../services/notificationService';
 
 const UserProfileComponent: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -12,6 +13,9 @@ const UserProfileComponent: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Push Notification State
+  const [pushEnabled, setPushEnabled] = useState(false);
 
   // State para mudança de senha
   const [newPassword, setNewPassword] = useState('');
@@ -38,6 +42,11 @@ const UserProfileComponent: React.FC = () => {
             statement: ''
           });
         }
+        
+        // Verifica status do OneSignal
+        const enabled = await isPushEnabled();
+        setPushEnabled(enabled);
+
       } catch (e) {
         console.error("Erro ao carregar perfil", e);
       } finally {
@@ -134,6 +143,14 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleEnablePush = async () => {
+    await requestNotificationPermission();
+    // Re-check
+    const enabled = await isPushEnabled();
+    setPushEnabled(enabled);
+    if(enabled) setMessage({ type: 'success', text: 'Notificações ativadas! Você receberá mensagens de poder.' });
   };
 
   if (loading) {
@@ -266,6 +283,27 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
                  />
               </div>
             )}
+          </div>
+          
+          {/* Notifications Toggle */}
+          <div className="pt-2">
+             <button
+                type="button"
+                onClick={handleEnablePush}
+                disabled={pushEnabled}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold border transition-all ${
+                   pushEnabled 
+                     ? 'bg-emerald-50 border-emerald-200 text-emerald-700 cursor-default'
+                     : 'bg-white border-slate-200 text-slate-500 hover:border-[#F87A14] hover:text-[#F87A14]'
+                }`}
+             >
+                <div className="flex items-center gap-2">
+                   {pushEnabled ? <BellRing size={20} /> : <Bell size={20} />}
+                   <span>{pushEnabled ? 'Notificações Ativadas' : 'Ativar Notificações Inteligentes'}</span>
+                </div>
+                {pushEnabled ? <CheckCircle size={18} /> : <span className="text-xs bg-slate-100 px-2 py-1 rounded">Ativar</span>}
+             </button>
+             {!pushEnabled && <p className="text-xs text-slate-400 mt-1 ml-1">Receba insights e lembretes para manter o foco.</p>}
           </div>
 
           <div className="pt-4 border-t border-slate-100">
