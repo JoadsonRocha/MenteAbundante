@@ -1,5 +1,3 @@
-// Importante: O OneSignal requer este script no topo para capturar eventos de 'push'
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
 const CACHE_NAME = 'mindrise-v5-store-ready';
 const ASSETS_TO_CACHE = [

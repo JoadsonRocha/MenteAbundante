@@ -40,14 +40,16 @@ const AppContent: React.FC = () => {
   const [desireStatement, setDesireStatement] = useState<string | null>(null);
   const [showDesireModal, setShowDesireModal] = useState(false);
 
-  // Efeito para Resetar Tab ao Logar e Forçar Sync
+  // Efeito para Resetar Tab ao Logar e Inicialização
   useEffect(() => {
     // Sempre que o usuário muda (login ou logout), forçamos o dashboard
     setActiveTab('dashboard');
 
     if (user) {
-      // 1. Inicializa OneSignal e vincula ao usuário
-      initOneSignal(user.id);
+      // 1. Inicializa OneSignal (idempotente)
+      if (user.id) {
+        initOneSignal(user.id);
+      }
 
       // 2. Forçar sincronização imediata
       syncLocalDataToSupabase();
@@ -56,7 +58,7 @@ const AppContent: React.FC = () => {
       db.getTasks();
       db.getPlan();
     }
-  }, [user]);
+  }, [user?.id]); // Executa apenas quando o ID do usuário muda
 
   useEffect(() => {
     // Listeners de rede
