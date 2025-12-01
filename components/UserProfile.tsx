@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Save, Key, LogOut, CheckCircle, AlertCircle, Loader2, Sparkles, Camera, ScrollText, PenTool, Bell, BellRing, RefreshCw, Copy } from 'lucide-react';
+import { User, Mail, Save, Key, LogOut, CheckCircle, AlertCircle, Loader2, Sparkles, Camera, ScrollText, PenTool, Bell, BellRing, RefreshCw, Copy, Info } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { db, supabase } from '../services/database';
 import { UserProfile } from '../types';
@@ -17,6 +17,7 @@ const UserProfileComponent: React.FC = () => {
   // Push Notification State
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushId, setPushId] = useState<string | null>(null);
+  const [isSecure, setIsSecure] = useState(true);
 
   // State para mudança de senha
   const [newPassword, setNewPassword] = useState('');
@@ -29,6 +30,11 @@ const UserProfileComponent: React.FC = () => {
   const [showPrivacy, setShowPrivacy] = useState(false);
 
   const checkPushStatus = async () => {
+    // Verifica se estamos em contexto seguro (HTTPS ou Localhost)
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+       setIsSecure(false);
+    }
+    
     const enabled = await isPushEnabled();
     const id = await getOneSignalId();
     setPushEnabled(enabled);
@@ -152,9 +158,21 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
   };
 
   const handleEnablePush = async () => {
-    await requestNotificationPermission();
-    await checkPushStatus();
-    if (user?.id) syncOneSignalIdToSupabase(user.id);
+    if (!isSecure) {
+      alert("As notificações push exigem um site seguro (HTTPS) ou Localhost. O navegador bloqueou a solicitação.");
+      return;
+    }
+
+    try {
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        alert("Você bloqueou as notificações anteriormente. Acesse as configurações do navegador para desbloquear.");
+      }
+      await checkPushStatus();
+      if (user?.id) syncOneSignalIdToSupabase(user.id);
+    } catch (e) {
+      console.error("Erro UI Enable Push:", e);
+    }
   };
 
   const handleManualSync = async () => {
@@ -166,7 +184,7 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
         if (id) {
             alert(`Sincronizado! ID: ${id.substring(0,8)}...`);
         } else {
-            alert("Ainda sem ID. Verifique se permitiu notificações no navegador.");
+            alert("Ainda sem ID OneSignal. Verifique se permitiu notificações no navegador.");
         }
     }
   };
@@ -306,14 +324,22 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
           {/* Notifications Toggle */}
           <div className="pt-2">
              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 mb-2 block">Notificações</label>
+             
+             {!isSecure && (
+                <div className="mb-3 p-3 bg-amber-50 border border-amber-100 rounded-lg flex gap-2 text-xs text-amber-800">
+                  <AlertCircle size={16} className="shrink-0" />
+                  <span>Você está em um ambiente não seguro (HTTP). As notificações funcionam apenas em HTTPS ou Localhost.</span>
+                </div>
+             )}
+
              <button
                 type="button"
                 onClick={handleEnablePush}
-                disabled={pushEnabled}
+                disabled={pushEnabled || !isSecure}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold border transition-all ${
                    pushEnabled 
                      ? 'bg-emerald-50 border-emerald-200 text-emerald-700 cursor-default'
-                     : 'bg-white border-slate-200 text-slate-500 hover:border-[#F87A14] hover:text-[#F87A14]'
+                     : (!isSecure ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-500 hover:border-[#F87A14] hover:text-[#F87A14]')
                 }`}
              >
                 <div className="flex items-center gap-2">

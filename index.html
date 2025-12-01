@@ -66,9 +66,7 @@
     await OneSignal.init({
       appId: "e57c6fb0-c748-49f0-a513-9248d5d1b39b",
       allowLocalhostAsSecureOrigin: true,
-      serviceWorker: {
-          path: "./OneSignalSDKWorker.js", // Aponta explicitamente para nosso worker unificado
-      }
+      // Removido configuração de serviceWorker para usar o padrão (OneSignalSDKWorker.js na raiz)
     });
   });
 </script>
