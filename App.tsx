@@ -22,12 +22,20 @@ import AnxietyControl from './components/AnxietyControl';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
-import { initOneSignal } from './services/notificationService';
 
 // Componente interno para gerenciar o estado da aplicação pós-login
 const AppContent: React.FC = () => {
   const { user, loading, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  
+  // INICIALIZAÇÃO DA ABA: Tenta ler do localStorage, senão usa 'dashboard'
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    if (typeof window !== 'undefined') {
+      const savedTab = localStorage.getItem('mente_active_tab');
+      return (savedTab as Tab) || 'dashboard';
+    }
+    return 'dashboard';
+  });
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   
@@ -40,21 +48,18 @@ const AppContent: React.FC = () => {
   const [desireStatement, setDesireStatement] = useState<string | null>(null);
   const [showDesireModal, setShowDesireModal] = useState(false);
 
-  // Efeito para Resetar Tab ao Logar e Inicialização
+  // Efeito: Salva a aba atual sempre que ela mudar
   useEffect(() => {
-    // Sempre que o usuário muda (login ou logout), forçamos o dashboard
-    setActiveTab('dashboard');
+    localStorage.setItem('mente_active_tab', activeTab);
+  }, [activeTab]);
 
+  // Efeito: Inicialização de Dados do Usuário
+  useEffect(() => {
     if (user) {
-      // 1. Inicializa OneSignal (idempotente)
-      if (user.id) {
-        initOneSignal(user.id);
-      }
-
-      // 2. Forçar sincronização imediata
+      // 1. Forçar sincronização imediata
       syncLocalDataToSupabase();
       
-      // 3. Carregar dados cruciais em background para cache
+      // 2. Carregar dados cruciais em background para cache
       db.getTasks();
       db.getPlan();
     }

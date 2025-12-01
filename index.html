@@ -52,23 +52,9 @@
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "recharts": "https://aistudiocdn.com/recharts@^2.15.0",
-    "react-onesignal": "https://aistudiocdn.com/react-onesignal@^3.4.0"
+    "recharts": "https://aistudiocdn.com/recharts@^2.15.0"
   }
 }
-</script>
-
-<!-- OneSignal SDK Initialization -->
-<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-<script>
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
-  OneSignalDeferred.push(async function(OneSignal) {
-    await OneSignal.init({
-      appId: "e57c6fb0-c748-49f0-a513-9248d5d1b39b",
-      allowLocalhostAsSecureOrigin: true,
-      // Removido configuração de serviceWorker para usar o padrão (OneSignalSDKWorker.js na raiz)
-    });
-  });
 </script>
 
 <link rel="stylesheet" href="/index.css">

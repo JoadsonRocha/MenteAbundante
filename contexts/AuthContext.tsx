@@ -52,8 +52,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('mente_profile');
       localStorage.removeItem('mente_activity');
       localStorage.removeItem('mente_last_checklist_date');
-      // Adicionado: Limpeza do diário de gratidão
       localStorage.removeItem('mente_gratitude');
+      // Adicionado: Limpa a aba salva para o próximo login começar limpo
+      localStorage.removeItem('mente_active_tab');
       
       // Força atualização do estado
       setUser(null);

@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Save, Key, LogOut, CheckCircle, AlertCircle, Loader2, Sparkles, Camera, ScrollText, PenTool, Bell, BellRing, RefreshCw, Copy, Info } from 'lucide-react';
+import { User, Mail, Save, Key, LogOut, CheckCircle, AlertCircle, Loader2, Sparkles, Camera, ScrollText, PenTool } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { db, supabase } from '../services/database';
 import { UserProfile } from '../types';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
-import { requestNotificationPermission, isPushEnabled, syncOneSignalIdToSupabase, getOneSignalId } from '../services/notificationService';
 
 const UserProfileComponent: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -13,11 +12,6 @@ const UserProfileComponent: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Push Notification State
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [pushId, setPushId] = useState<string | null>(null);
-  const [isSecure, setIsSecure] = useState(true);
 
   // State para mudança de senha
   const [newPassword, setNewPassword] = useState('');
@@ -28,18 +22,6 @@ const UserProfileComponent: React.FC = () => {
   
   // State para modal de privacidade
   const [showPrivacy, setShowPrivacy] = useState(false);
-
-  const checkPushStatus = async () => {
-    // Verifica se estamos em contexto seguro (HTTPS ou Localhost)
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-       setIsSecure(false);
-    }
-    
-    const enabled = await isPushEnabled();
-    const id = await getOneSignalId();
-    setPushEnabled(enabled);
-    setPushId(id || null);
-  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -56,9 +38,6 @@ const UserProfileComponent: React.FC = () => {
             statement: ''
           });
         }
-        
-        await checkPushStatus();
-
       } catch (e) {
         console.error("Erro ao carregar perfil", e);
       } finally {
@@ -154,38 +133,6 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
       }
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleEnablePush = async () => {
-    if (!isSecure) {
-      alert("As notificações push exigem um site seguro (HTTPS) ou Localhost. O navegador bloqueou a solicitação.");
-      return;
-    }
-
-    try {
-      const granted = await requestNotificationPermission();
-      if (!granted) {
-        alert("Você bloqueou as notificações anteriormente. Acesse as configurações do navegador para desbloquear.");
-      }
-      await checkPushStatus();
-      if (user?.id) syncOneSignalIdToSupabase(user.id);
-    } catch (e) {
-      console.error("Erro UI Enable Push:", e);
-    }
-  };
-
-  const handleManualSync = async () => {
-    if (user?.id) {
-        await syncOneSignalIdToSupabase(user.id);
-        const id = await getOneSignalId();
-        setPushId(id || null);
-        
-        if (id) {
-            alert(`Sincronizado! ID: ${id.substring(0,8)}...`);
-        } else {
-            alert("Ainda sem ID OneSignal. Verifique se permitiu notificações no navegador.");
-        }
     }
   };
 
@@ -321,50 +268,6 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
             )}
           </div>
           
-          {/* Notifications Toggle */}
-          <div className="pt-2">
-             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 mb-2 block">Notificações</label>
-             
-             {!isSecure && (
-                <div className="mb-3 p-3 bg-amber-50 border border-amber-100 rounded-lg flex gap-2 text-xs text-amber-800">
-                  <AlertCircle size={16} className="shrink-0" />
-                  <span>Você está em um ambiente não seguro (HTTP). As notificações funcionam apenas em HTTPS ou Localhost.</span>
-                </div>
-             )}
-
-             <button
-                type="button"
-                onClick={handleEnablePush}
-                disabled={pushEnabled || !isSecure}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold border transition-all ${
-                   pushEnabled 
-                     ? 'bg-emerald-50 border-emerald-200 text-emerald-700 cursor-default'
-                     : (!isSecure ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white border-slate-200 text-slate-500 hover:border-[#F87A14] hover:text-[#F87A14]')
-                }`}
-             >
-                <div className="flex items-center gap-2">
-                   {pushEnabled ? <BellRing size={20} /> : <Bell size={20} />}
-                   <span>{pushEnabled ? 'Notificações Ativas' : 'Ativar Notificações'}</span>
-                </div>
-                {pushEnabled ? <CheckCircle size={18} /> : <span className="text-xs bg-slate-100 px-2 py-1 rounded">Ativar</span>}
-             </button>
-             
-             {/* Status Debug info */}
-             <div className="mt-2 flex items-center justify-between text-xs text-slate-400 px-1 bg-slate-50/50 p-2 rounded-lg border border-slate-100">
-                <div className="flex flex-col">
-                   <span className="font-bold text-slate-500">Status: {pushId ? 'Conectado' : 'Desconectado'}</span>
-                   {pushId && <span className="font-mono text-[10px] text-slate-400">{pushId}</span>}
-                </div>
-                <button 
-                   type="button" 
-                   onClick={handleManualSync}
-                   className="flex items-center gap-1 hover:text-amber-500 bg-white border border-slate-200 px-2 py-1 rounded shadow-sm"
-                >
-                   <RefreshCw size={12} /> Sincronizar
-                </button>
-             </div>
-          </div>
-
           <div className="pt-4 border-t border-slate-100">
              <button 
                type="button"

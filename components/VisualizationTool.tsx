@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Eye, Anchor, Volume2, VolumeX, Loader2, DownloadCloud, CheckCircle2, ScrollText, Headphones } from 'lucide-react';
+import { Play, Pause, RotateCcw, Eye, Anchor, Volume2, VolumeX, Loader2, DownloadCloud, CheckCircle2, ScrollText, Headphones, RefreshCw } from 'lucide-react';
 import { generateGuidedAudio } from '../services/geminiService';
 import { db } from '../services/database';
 
@@ -49,6 +49,29 @@ const getAudioFromDB = async (id: number): Promise<ArrayBuffer | undefined> => {
     return undefined;
   }
 };
+
+const deleteAudioFromDB = async (id: number) => {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.delete(id);
+    return tx.oncomplete;
+  } catch(e) {
+    console.warn("Error deleting from DB", e);
+  }
+};
+
+// Helper simples de Hash para verificar se o texto mudou
+const simpleHash = (str: string) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash &= hash; // Convert to 32bit integer
+  }
+  return hash.toString();
+};
 // -----------------------
 
 type VisualizerMode = 'guided' | 'statement';
@@ -95,6 +118,16 @@ const VisualizationTool: React.FC = () => {
       }
     };
     fetchStatement();
+
+    // Listener para atualização de perfil em tempo real
+    const handleProfileUpdate = () => {
+       fetchStatement();
+    };
+    window.addEventListener('profile-updated', handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener('profile-updated', handleProfileUpdate);
+    };
   }, []);
 
   // --- WAV Header Helpers ---
@@ -220,8 +253,7 @@ const VisualizationTool: React.FC = () => {
   };
 
   // --- LOGICA PARA AUDIO DA DECLARAÇÃO (STATEMENT) ---
-  const playStatementAudio = async () => {
-    // ID Especial para Statement: 99
+  const playStatementAudio = async (forceRegenerate = false) => {
     const STATEMENT_ID = 99;
 
     initAudioContext();
@@ -232,10 +264,26 @@ const VisualizationTool: React.FC = () => {
       return;
     }
 
+    if (!statementText) {
+      alert("Texto não encontrado.");
+      return;
+    }
+
     setIsStatementPlaying(true);
     setStatementLoading(true);
 
     try {
+      // 0. Verifica Integridade do Cache (Hash do Texto)
+      const currentHash = simpleHash(statementText);
+      const savedHash = localStorage.getItem('mente_statement_audio_hash');
+
+      // Se o texto mudou ou forçado a regenerar, invalida o cache
+      if (forceRegenerate || savedHash !== currentHash) {
+         console.log("Texto mudou, invalidando cache de áudio...");
+         await deleteAudioFromDB(STATEMENT_ID);
+         delete audioBufferCache.current[STATEMENT_ID];
+      }
+
       // 1. Verifica Cache RAM
       if (audioBufferCache.current[STATEMENT_ID]) {
         setStatementLoading(false);
@@ -244,10 +292,7 @@ const VisualizationTool: React.FC = () => {
       }
 
       // 2. Verifica IndexedDB
-      // Nota: Idealmente invalidaríamos o cache se o texto mudasse, mas por simplicidade usaremos o ID 99.
-      // Se o usuário mudou o texto, ele pode precisar limpar o cache ou implementamos hash no futuro.
       let bufferToPlay: AudioBuffer | null = null;
-      
       const cachedArrayBuffer = await getAudioFromDB(STATEMENT_ID);
       
       if (cachedArrayBuffer) {
@@ -257,7 +302,6 @@ const VisualizationTool: React.FC = () => {
          bufferToPlay = decoded;
       } else {
          // 3. Gera na API
-         if (!statementText) throw new Error("Sem texto");
          const base64Audio = await generateGuidedAudio(statementText);
          
          if (base64Audio) {
@@ -271,6 +315,9 @@ const VisualizationTool: React.FC = () => {
             
             // Salva no DB
             await saveAudioToDB(STATEMENT_ID, wavBuffer);
+            
+            // Atualiza Hash no LocalStorage
+            localStorage.setItem('mente_statement_audio_hash', currentHash);
 
             // Decodifica
             const decoded = await audioContextRef.current.decodeAudioData(wavBuffer.slice(0));
@@ -546,7 +593,7 @@ const VisualizationTool: React.FC = () => {
           {/* Player Bar */}
           <div className="p-4 bg-white border-t border-slate-100 shrink-0 flex items-center justify-center gap-4">
              <button
-               onClick={playStatementAudio}
+               onClick={() => playStatementAudio(false)}
                disabled={!statementText || statementLoading}
                className={`flex items-center gap-3 px-8 py-4 rounded-full font-bold text-lg shadow-lg transition-all ${
                   isStatementPlaying 
@@ -567,6 +614,16 @@ const VisualizationTool: React.FC = () => {
                    <Headphones size={24} /> Ouvir Declaração
                  </>
                )}
+             </button>
+             
+             {/* Force Regenerate Button (se o usuário quiser atualizar explicitamente) */}
+             <button
+                onClick={() => playStatementAudio(true)}
+                disabled={!statementText || statementLoading || isStatementPlaying}
+                className="p-4 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+                title="Regerar Áudio (Se o texto mudou)"
+             >
+                <RefreshCw size={20} className={statementLoading ? "animate-spin" : ""} />
              </button>
           </div>
         </div>

@@ -8,7 +8,6 @@ export interface UserProfile {
   statement?: string; // Declaração de Desejo (Napoleon Hill)
   imagem?: string;
   email?: string;
-  onesignal_id?: string; // ID para Push Notifications
 }
 
 export interface DailyTask {
