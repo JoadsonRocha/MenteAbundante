@@ -57,6 +57,22 @@
   }
 }
 </script>
+
+<!-- OneSignal SDK Initialization -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "e57c6fb0-c748-49f0-a513-9248d5d1b39b",
+      allowLocalhostAsSecureOrigin: true,
+      serviceWorker: {
+          path: "./OneSignalSDKWorker.js", // Aponta explicitamente para nosso worker unificado
+      }
+    });
+  });
+</script>
+
 <link rel="stylesheet" href="/index.css">
 </head>
   <body>

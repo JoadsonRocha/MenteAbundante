@@ -7,17 +7,16 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-// Registro do Service Worker para PWA
+// Registro do Service Worker para PWA e Notificações
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    // Usamos './sw.js' (relativo) para evitar erros de origem cruzada em ambientes de preview
-    navigator.serviceWorker.register('./sw.js')
+    // Registramos o OneSignalSDKWorker.js pois ele agora contém tanto a lógica do OneSignal quanto do PWA
+    navigator.serviceWorker.register('./OneSignalSDKWorker.js')
       .then(registration => {
-        console.log('SW registrado com sucesso:', registration.scope);
+        console.log('SW (PWA + OneSignal) registrado com sucesso:', registration.scope);
       })
       .catch(error => {
-        // Em ambientes de desenvolvimento/preview, falhas de SW são comuns devido a iframes e SSL
-        console.log('Info: Service Worker não registrado (normal em ambiente de preview).');
+        console.log('Info: Service Worker não registrado (normal em ambiente de preview/dev).', error);
       });
   });
 }
