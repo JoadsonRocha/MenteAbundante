@@ -2,14 +2,14 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>MindRise</title>
     
     <!-- PWA Configuration -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#EA580C">
+    <meta name="theme-color" content="#ffffff">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="MindRise">
     <meta name="description" content="Sua ferramenta diária para reprogramação mental e abundância.">
     
@@ -22,16 +22,38 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+      :root {
+        --sat: env(safe-area-inset-top);
+        --sab: env(safe-area-inset-bottom);
+        --sal: env(safe-area-inset-left);
+        --sar: env(safe-area-inset-right);
+      }
+
       body {
         font-family: 'Inter', sans-serif;
         background-color: #f8fafc;
+        /* UX Nativa: Impede seleção de texto na UI e efeito elástico */
+        -webkit-user-select: none;
+        user-select: none;
+        overscroll-behavior-y: none;
+        /* Remove highlight cinza ao tocar em botões mobile */
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
       }
+
+      /* Reativa seleção apenas onde necessário */
+      input, textarea, [contenteditable="true"], .selectable-text {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
-        width: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: #f1f1f1; 
+        background: transparent; 
       }
       ::-webkit-scrollbar-thumb {
         background: #cbd5e1; 

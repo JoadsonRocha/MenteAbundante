@@ -95,11 +95,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
         border-l lg:border-l-0 lg:border-r border-slate-200
         ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
         
-        <div className="p-6 flex items-center justify-center shrink-0 relative">
+        {/* Header da Sidebar com Safe Area Padding Top */}
+        <div className="p-6 flex items-center justify-center shrink-0 relative pt-[max(1.5rem,env(safe-area-inset-top))]">
           {/* Logo Nova */}
           <Logo size={56} />
           
-          <button onClick={toggleSidebar} className="absolute left-6 lg:hidden text-slate-400 hover:text-[#F87A14] transition-colors">
+          <button onClick={toggleSidebar} className="absolute left-6 lg:hidden text-slate-400 hover:text-[#F87A14] transition-colors top-[calc(50%+env(safe-area-inset-top)/2)] -translate-y-1/2">
             <X size={24} />
           </button>
         </div>
@@ -135,7 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
           )}
         </nav>
 
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0 space-y-2">
+        <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0 space-y-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
           
           <button 
             onClick={handleProfileClick}

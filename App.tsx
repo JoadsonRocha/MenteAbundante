@@ -210,17 +210,17 @@ const AppContent: React.FC = () => {
       <main className="flex-1 min-w-0 relative">
         {/* Offline Warning */}
         {isOffline && (
-          <div className="bg-slate-800 text-white text-xs py-1 px-4 text-center flex items-center justify-center gap-2">
+          <div className="bg-slate-800 text-white text-xs py-1 px-4 text-center flex items-center justify-center gap-2 pt-[calc(0.25rem+env(safe-area-inset-top))] lg:pt-1">
             <WifiOff size={12} />
-            <span>Modo Offline: Alterações salvas no dispositivo e sincronizadas ao reconectar.</span>
+            <span>Modo Offline: Alterações salvas no dispositivo.</span>
           </div>
         )}
 
-        {/* Mobile Header Modernizado */}
-        <div className="lg:hidden bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+        {/* Mobile Header Modernizado e Adaptado para Safe Area */}
+        <div className="lg:hidden bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 z-30 shadow-sm pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="flex items-center gap-3">
             <div>
-              <h1 className="font-extrabold text-[#F87A14] text-xl tracking-tight leading-none">Mente Abundante</h1>
+              <h1 className="font-extrabold text-[#F87A14] text-xl tracking-tight leading-none">MindRise</h1>
               <p className="text-[10px] text-slate-500 font-medium tracking-wide">& Vitoriosa</p>
             </div>
           </div>
@@ -244,7 +244,7 @@ const AppContent: React.FC = () => {
         </div>
 
         {/* Content Area */}
-        <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-[calc(100vh-64px)] lg:min-h-screen pb-20">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-[calc(100vh-64px)] lg:min-h-screen pb-24 md:pb-20">
           {/* Botão Voltar Universal (Mobile e Desktop) */}
           {activeTab !== 'dashboard' && activeTab !== 'anxiety' && (
             <button
