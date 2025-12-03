@@ -1,5 +1,8 @@
+// Importa o Service Worker do OneSignal
+importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js');
+
 // --- LÓGICA DO PWA (CACHE & OFFLINE) ---
-const CACHE_NAME = 'mindrise-v5-store-ready';
+const CACHE_NAME = 'mindrise-v8-onesignal';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -12,7 +15,6 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // console.log('SW: Caching core assets');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
@@ -26,7 +28,6 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            // console.log('SW: Clearing old cache', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -40,17 +41,14 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Ignorar requisições externas (API, Supabase, Google Fonts)
-  if (!url.origin.startsWith(self.location.origin)) {
+  // Ignorar requisições externas e do OneSignal
+  if (!url.origin.startsWith(self.location.origin) || url.href.includes('onesignal.com')) {
     return;
   }
 
-  // Ignorar API calls locais se houver
-  if (url.pathname.startsWith('/api/')) {
-    return;
-  }
+  if (url.pathname.startsWith('/api/')) return;
 
-  // Estratégia para Navegação (HTML): Network First, depois Cache, depois Fallback para index.html
+  // Estratégia para Navegação (HTML)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -58,7 +56,6 @@ self.addEventListener('fetch', (event) => {
           return caches.match(event.request)
             .then((cachedResponse) => {
               if (cachedResponse) return cachedResponse;
-              // CRUCIAL: Retorna index.html se não conseguir carregar a rota (SPA Navigation Fallback)
               return caches.match('/index.html');
             });
         })
@@ -66,12 +63,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Estratégia para Assets (JS, CSS, Imagens): Cache First, depois Network
+  // Estratégia para Assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       return cachedResponse || fetch(event.request).then((networkResponse) => {
         return caches.open(CACHE_NAME).then((cache) => {
-          // Cache dinâmico de novos arquivos
           cache.put(event.request, networkResponse.clone());
           return networkResponse;
         });

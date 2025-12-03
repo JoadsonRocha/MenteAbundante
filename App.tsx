@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Menu, Loader2, LogOut, WifiOff, ArrowLeft } from 'lucide-react';
+import OneSignal from 'react-onesignal';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import BeliefReprogrammer from './components/BeliefReprogrammer';
@@ -23,11 +24,17 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
 
+// Fix TypeScript error for window.OneSignal
+declare global {
+  interface Window {
+    OneSignal: any;
+  }
+}
+
 // Componente interno para gerenciar o estado da aplicação pós-login
 const AppContent: React.FC = () => {
   const { user, loading, signOut } = useAuth();
   
-  // INICIALIZAÇÃO DA ABA: Tenta ler do localStorage, senão usa 'dashboard'
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     if (typeof window !== 'undefined') {
       const savedTab = localStorage.getItem('mente_active_tab');
@@ -38,35 +45,68 @@ const AppContent: React.FC = () => {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  
-  // Estado para o PWA Install Prompt
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  
-  // Estado para o Onboarding
   const [showOnboarding, setShowOnboarding] = useState(false);
-  // Estado para a Declaração de Desejo
   const [desireStatement, setDesireStatement] = useState<string | null>(null);
   const [showDesireModal, setShowDesireModal] = useState(false);
 
-  // Efeito: Salva a aba atual sempre que ela mudar
+  // Ref para garantir que o OneSignal inicialize apenas uma vez (evita StrictMode double-call)
+  const oneSignalInitRef = useRef(false);
+
+  // --- INICIALIZAÇÃO ONESIGNAL ---
+  useEffect(() => {
+    if (oneSignalInitRef.current) return;
+    oneSignalInitRef.current = true;
+
+    const initOneSignal = async () => {
+      const ONESIGNAL_APP_ID = "f0d535c5-1b47-48be-89df-7bca30bf2b38"; 
+
+      try {
+        await OneSignal.init({
+          appId: ONESIGNAL_APP_ID, 
+          allowLocalhostAsSecureOrigin: true,
+          serviceWorkerParam: { scope: '/' },
+          serviceWorkerPath: 'sw.js',
+        });
+        console.log("OneSignal Status: Ativo");
+      } catch (e) {
+        console.warn("OneSignal Status: Não foi possível conectar (Verifique App ID/Domínio).", e);
+      }
+    };
+
+    initOneSignal();
+  }, []);
+
+  // --- LOGIN NO ONESIGNAL ---
+  useEffect(() => {
+    if (user?.id) {
+        // Pequeno delay para garantir que o init já processou
+        const timer = setTimeout(() => {
+          try {
+              if (window.OneSignal) {
+                OneSignal.login(user.id);
+              }
+          } catch (e) {
+              console.warn("OneSignal Login pendente.");
+          }
+        }, 2000);
+        return () => clearTimeout(timer);
+    }
+  }, [user?.id]);
+
   useEffect(() => {
     localStorage.setItem('mente_active_tab', activeTab);
   }, [activeTab]);
 
-  // Efeito: Inicialização de Dados do Usuário
   useEffect(() => {
     if (user) {
-      // 1. Forçar sincronização imediata
       syncLocalDataToSupabase();
-      
-      // 2. Carregar dados cruciais em background para cache
       db.getTasks();
       db.getPlan();
     }
-  }, [user?.id]); // Executa apenas quando o ID do usuário muda
+  }, [user?.id]);
 
   useEffect(() => {
-    // Listeners de rede
     const handleOnline = () => {
       setIsOffline(false);
       syncLocalDataToSupabase();
@@ -76,20 +116,15 @@ const AppContent: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
-    // Captura evento de instalação PWA
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Inicialização de dados do usuário
     if (user) {
       const initAppData = async () => {
-        // Check Profile for Statement
         const profile = await db.getProfile();
-        
-        // Verifica se já mostrou nesta sessão
         const hasShownDesire = sessionStorage.getItem('mente_desire_shown');
         
         if (profile?.statement && !hasShownDesire) {
@@ -98,7 +133,6 @@ const AppContent: React.FC = () => {
           sessionStorage.setItem('mente_desire_shown', 'true');
         }
 
-        // Check Onboarding
         const hasSeenOnboarding = localStorage.getItem('mente_onboarding_completed');
         if (!hasSeenOnboarding) {
           setShowOnboarding(true);
@@ -124,17 +158,22 @@ const AppContent: React.FC = () => {
     setShowOnboarding(true);
   };
   
-  // Função de Instalação passada para Sidebar e Banner
   const installApp = async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User response to install prompt: ${outcome}`);
     setDeferredPrompt(null);
   };
 
   const handleLogout = async () => {
-    setActiveTab('dashboard'); // Garante visualmente antes de sair
+    setActiveTab('dashboard');
+    try {
+      if (window.OneSignal) {
+         OneSignal.logout();
+      }
+    } catch(e) {
+      // Ignora erro silenciosamente
+    }
     await signOut();
   };
 
@@ -204,11 +243,10 @@ const AppContent: React.FC = () => {
         isOpen={sidebarOpen}
         toggleSidebar={toggleSidebar}
         onOpenTour={handleOpenOnboarding}
-        installApp={deferredPrompt ? installApp : undefined} // Passa função apenas se disponível
+        installApp={deferredPrompt ? installApp : undefined} 
       />
 
       <main className="flex-1 min-w-0 relative">
-        {/* Offline Warning */}
         {isOffline && (
           <div className="bg-slate-800 text-white text-xs py-1 px-4 text-center flex items-center justify-center gap-2 pt-[calc(0.25rem+env(safe-area-inset-top))] lg:pt-1">
             <WifiOff size={12} />
@@ -216,7 +254,6 @@ const AppContent: React.FC = () => {
           </div>
         )}
 
-        {/* Mobile Header Modernizado e Adaptado para Safe Area */}
         <div className="lg:hidden bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 z-30 shadow-sm pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="flex items-center gap-3">
             <div>
@@ -243,9 +280,7 @@ const AppContent: React.FC = () => {
           </div>
         </div>
 
-        {/* Content Area */}
         <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-[calc(100vh-64px)] lg:min-h-screen pb-24 md:pb-20">
-          {/* Botão Voltar Universal (Mobile e Desktop) */}
           {activeTab !== 'dashboard' && activeTab !== 'anxiety' && (
             <button
               onClick={() => setActiveTab('dashboard')}
@@ -261,10 +296,8 @@ const AppContent: React.FC = () => {
           {renderContent()}
         </div>
 
-        {/* PWA Install Banner (Rodapé) */}
         <InstallBanner installAction={installApp} deferredPrompt={deferredPrompt} />
 
-        {/* Modals */}
         <OnboardingTour isOpen={showOnboarding} onClose={handleCloseOnboarding} />
         
         {desireStatement && (

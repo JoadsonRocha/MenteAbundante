@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Bell, BellOff, TrendingUp, Brain, Calendar, CheckCircle } from 'lucide-react';
 import { db } from '../services/database';
-import { ActivityLog, BeliefEntry } from '../types';
+import { ActivityLog } from '../types';
+import { requestNotificationPermission, isPushEnabled } from '../services/notificationService';
 
 const ProgressStats: React.FC = () => {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [beliefCount, setBeliefCount] = useState(0);
-  const [notificationPermission, setNotificationPermission] = useState(Notification.permission);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
 
   useEffect(() => {
@@ -37,38 +37,23 @@ const ProgressStats: React.FC = () => {
       const beliefs = await db.getBeliefs();
       setBeliefCount(beliefs.length);
       
-      // Estado de notificação local
-      const savedReminder = localStorage.getItem('mente_reminders') === 'true';
-      setRemindersEnabled(savedReminder && Notification.permission === 'granted');
+      // Verifica permissão atual
+      const enabled = await isPushEnabled();
+      setRemindersEnabled(enabled);
     };
     loadData();
   }, []);
 
-  const requestNotification = async () => {
-    if (!('Notification' in window)) {
-      alert("Este navegador não suporta notificações.");
-      return;
-    }
-
-    const permission = await Notification.requestPermission();
-    setNotificationPermission(permission);
-
-    if (permission === 'granted') {
-      setRemindersEnabled(true);
-      localStorage.setItem('mente_reminders', 'true');
-      // Notificação manual removida conforme solicitação
-    } else {
-      setRemindersEnabled(false);
-      localStorage.setItem('mente_reminders', 'false');
-    }
-  };
-
-  const toggleReminders = () => {
+  const handleToggleReminders = async () => {
     if (remindersEnabled) {
-      setRemindersEnabled(false);
-      localStorage.setItem('mente_reminders', 'false');
+      // Não é possível revogar permissão programaticamente via JS, apenas informar ao usuário
+      alert("Para desativar, vá nas configurações do navegador e remova a permissão de notificação para este site.");
     } else {
-      requestNotification();
+      const granted = await requestNotificationPermission();
+      setRemindersEnabled(granted);
+      if (granted) {
+        alert("Notificações ativadas! Você receberá lembretes de foco.");
+      }
     }
   };
 
@@ -156,7 +141,7 @@ const ProgressStats: React.FC = () => {
         </div>
         
         <button
-          onClick={toggleReminders}
+          onClick={handleToggleReminders}
           className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 ${
             remindersEnabled 
               ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20' 

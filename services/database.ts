@@ -147,6 +147,22 @@ if (typeof window !== 'undefined') {
 }
 
 export const db = {
+  // --- NOTIFICAÇÕES (NOVO) ---
+  async saveFcmToken(token: string): Promise<void> {
+    if (!supabase || !navigator.onLine) return;
+    const userId = await getCurrentUserId();
+    if (userId) {
+       // Salva o token na tabela de perfil. 
+       // Obs: Certifique-se de criar a coluna 'fcm_token' no Supabase ou tabela separada 'user_devices'
+       try {
+         await supabase.from('profiles').update({ fcm_token: token }).eq('id', userId);
+         console.log('Token FCM salvo no banco.');
+       } catch(e) {
+         console.error('Erro ao salvar token FCM:', e);
+       }
+    }
+  },
+
   // --- PERFIL ---
   async getProfile(): Promise<UserProfile | null> {
     const userId = await getCurrentUserId();
