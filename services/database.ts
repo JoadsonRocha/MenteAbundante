@@ -60,6 +60,16 @@ export const syncLocalDataToSupabase = async () => {
   const userId = await getCurrentUserId();
   if (!userId) return;
 
+  const handleSyncError = (table: string, error: any) => {
+    // 400 ou PGRST204 geralmente indicam que a coluna não existe no banco ou tipo errado.
+    // Ignoramos para não travar o app, mas logamos para debug.
+    if (error.code === 'PGRST204' || error.code === '400' || error.status === 400) {
+      console.warn(`[Sync Warning] Schema mismatch in table '${table}'. Database might need migration. Working offline.`);
+    } else {
+      console.error(`[Sync Error] Failed to sync ${table}:`, error.message);
+    }
+  };
+
   try {
     // 1. Sync Tasks
     const localTasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
@@ -72,7 +82,8 @@ export const syncLocalDataToSupabase = async () => {
         ai_advice: t.ai_advice || null,
         user_id: userId 
       }));
-      await supabase.from('tasks').upsert(tasksWithUser);
+      const { error } = await supabase.from('tasks').upsert(tasksWithUser);
+      if (error) handleSyncError('tasks', error);
     }
 
     // 2. Sync Plan
@@ -89,18 +100,23 @@ export const syncLocalDataToSupabase = async () => {
         completed_at: p.completed_at || null, 
         user_id: userId 
       }));
-      await supabase.from('plans').upsert(plansWithUser);
+      const { error } = await supabase.from('plans').upsert(plansWithUser);
+      if (error) handleSyncError('plans', error);
     }
 
     // 3. Sync Activity Logs
     const localLogs = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITY) || '[]');
     if (localLogs.length > 0) {
        for (const log of localLogs) {
-         await supabase.from('activity_logs').upsert({ 
+         const { error } = await supabase.from('activity_logs').upsert({ 
             user_id: userId, 
             date: log.date, 
             count: log.count 
          }, { onConflict: 'user_id,date' });
+         if (error) { 
+           handleSyncError('activity_logs', error);
+           break; // Stop loop on error
+         }
        }
     }
     
@@ -117,7 +133,7 @@ export const syncLocalDataToSupabase = async () => {
       };
       
       const { error } = await supabase.from('profiles').upsert(payload);
-      if (error) console.warn("Erro sync profile", error.message);
+      if (error) handleSyncError('profiles', error);
     }
 
     // 5. Sync Gratitude
@@ -133,13 +149,14 @@ export const syncLocalDataToSupabase = async () => {
       }));
       
       if (entriesWithUser.length > 0) {
-        await supabase.from('gratitude_entries').upsert(entriesWithUser);
+        const { error } = await supabase.from('gratitude_entries').upsert(entriesWithUser);
+        if (error) handleSyncError('gratitude_entries', error);
       }
     }
 
   } catch (e: any) {
     if (e?.message?.includes('JWT') || e?.code === '400') {
-      console.error("Erro de Autenticação no Sync:", e);
+      console.warn("Autenticação/Rede: Continuando em modo Offline.");
     } else {
       console.error("Erro genérico na sincronização:", e);
     }
@@ -193,7 +210,7 @@ export const db = {
         };
         const { error } = await supabase.from('profiles').upsert(payload);
         if (error) {
-           console.error("Erro update profile DB:", error);
+           console.warn("Erro ao salvar perfil na nuvem (DB mismatch?):", error.message);
         }
     }
   },
