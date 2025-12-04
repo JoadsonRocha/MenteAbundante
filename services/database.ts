@@ -13,7 +13,13 @@ const hasSupabase = SUPABASE_URL && SUPABASE_KEY && SUPABASE_KEY.length > 5;
 
 // Exportamos para usar no AuthContext
 export const supabase: SupabaseClient | null = hasSupabase 
-  ? createClient(SUPABASE_URL, SUPABASE_KEY) 
+  ? createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    }) 
   : null;
 
 const STORAGE_KEYS = {
@@ -58,11 +64,18 @@ export const syncLocalDataToSupabase = async () => {
     // 1. Sync Tasks
     const localTasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
     if (localTasks.length > 0) {
-      const tasksWithUser = localTasks.map((t: any) => ({ ...t, user_id: userId }));
+      const tasksWithUser = localTasks.map((t: any) => ({ 
+        id: t.id,
+        text: t.text,
+        completed: t.completed,
+        note: t.note || null,
+        ai_advice: t.ai_advice || null,
+        user_id: userId 
+      }));
       await supabase.from('tasks').upsert(tasksWithUser);
     }
 
-    // 2. Sync Plan
+    // 2. Sync Plan (CORREÇÃO ERRO 400: Normalizar campos opcionais para null)
     const localPlan = JSON.parse(localStorage.getItem(STORAGE_KEYS.PLAN) || '[]');
     const modifiedDays = localPlan.filter((p: any) => p.completed || p.answer);
     if (modifiedDays.length > 0) {
@@ -71,8 +84,9 @@ export const syncLocalDataToSupabase = async () => {
         title: p.title,
         description: p.description,
         completed: p.completed,
-        answer: p.answer,
-        completed_at: p.completed_at, 
+        answer: p.answer || null,
+        ai_feedback: p.ai_feedback || null,
+        completed_at: p.completed_at || null, 
         user_id: userId 
       }));
       await supabase.from('plans').upsert(plansWithUser);
@@ -82,12 +96,12 @@ export const syncLocalDataToSupabase = async () => {
     const localLogs = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITY) || '[]');
     if (localLogs.length > 0) {
        for (const log of localLogs) {
-         const { data } = await supabase.from('activity_logs').select('*').eq('user_id', userId).eq('date', log.date).single();
-         if (data) {
-           await supabase.from('activity_logs').update({ count: log.count }).eq('id', data.id);
-         } else {
-           await supabase.from('activity_logs').insert({ user_id: userId, date: log.date, count: log.count });
-         }
+         // Upsert simples é melhor que select+update em loop
+         await supabase.from('activity_logs').upsert({ 
+            user_id: userId, 
+            date: log.date, 
+            count: log.count 
+         }, { onConflict: 'user_id,date' });
        }
     }
     
@@ -96,47 +110,41 @@ export const syncLocalDataToSupabase = async () => {
     if (localProfile && localProfile.id === userId) {
       const payload = {
          id: userId,
-         full_name: localProfile.full_name,
-         mantra: localProfile.mantra,
-         imagem: localProfile.imagem,
-         statement: localProfile.statement,
+         full_name: localProfile.full_name || null,
+         mantra: localProfile.mantra || null,
+         imagem: localProfile.imagem || null,
+         statement: localProfile.statement || null,
          updated_at: new Date().toISOString()
       };
-      // Tenta upsert, com fallback se colunas novas não existirem
+      
       const { error } = await supabase.from('profiles').upsert(payload);
-      if (error && error.message?.includes('imagem')) {
-         const { imagem, ...basicPayload } = payload;
-         await supabase.from('profiles').upsert(basicPayload);
-      }
+      if (error) console.warn("Erro sync profile", error.message);
     }
 
-    // 5. Sync Gratitude (Upload)
+    // 5. Sync Gratitude
     const localGratitude = JSON.parse(localStorage.getItem(STORAGE_KEYS.GRATITUDE) || '[]');
     if (localGratitude.length > 0) {
       const validEntries = localGratitude.filter((g: any) => g.id && g.id.length > 10);
-      const entriesWithUser = validEntries.map((g: any) => ({ ...g, user_id: userId }));
+      const entriesWithUser = validEntries.map((g: any) => ({ 
+        id: g.id,
+        text: g.text,
+        ai_response: g.ai_response || null,
+        date: g.date,
+        user_id: userId 
+      }));
       
       if (entriesWithUser.length > 0) {
         await supabase.from('gratitude_entries').upsert(entriesWithUser);
       }
     }
-    
-    // 6. Sync Goal Plans
-    const localGoals = JSON.parse(localStorage.getItem(STORAGE_KEYS.GOAL_PLANS) || '[]');
-    if (localGoals.length > 0) {
-       const goalsWithUser = localGoals.map((g: any) => ({ ...g, user_id: userId }));
-       await supabase.from('goal_plans').upsert(goalsWithUser);
-    }
 
-    // 7. Sync Support Tickets
-    const localTickets = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUPPORT_TICKETS) || '[]');
-    if (localTickets.length > 0) {
-       const ticketsWithUser = localTickets.map((t: any) => ({ ...t, user_id: userId }));
-       await supabase.from('support_tickets').upsert(ticketsWithUser);
+  } catch (e: any) {
+    // Se o erro for de autenticação (400/401), pode ser necessário deslogar
+    if (e?.message?.includes('JWT') || e?.code === '400') {
+      console.error("Erro de Autenticação no Sync:", e);
+    } else {
+      console.error("Erro genérico na sincronização:", e);
     }
-
-  } catch (e) {
-    console.error("Erro na sincronização:", e);
   }
 };
 
@@ -147,22 +155,6 @@ if (typeof window !== 'undefined') {
 }
 
 export const db = {
-  // --- NOTIFICAÇÕES (NOVO) ---
-  async saveFcmToken(token: string): Promise<void> {
-    if (!supabase || !navigator.onLine) return;
-    const userId = await getCurrentUserId();
-    if (userId) {
-       // Salva o token na tabela de perfil. 
-       // Obs: Certifique-se de criar a coluna 'fcm_token' no Supabase ou tabela separada 'user_devices'
-       try {
-         await supabase.from('profiles').update({ fcm_token: token }).eq('id', userId);
-         console.log('Token FCM salvo no banco.');
-       } catch(e) {
-         console.error('Erro ao salvar token FCM:', e);
-       }
-    }
-  },
-
   // --- PERFIL ---
   async getProfile(): Promise<UserProfile | null> {
     const userId = await getCurrentUserId();
@@ -170,6 +162,7 @@ export const db = {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (userId && parsed.id === userId) return parsed;
+      // Se mudou o usuário, limpa o cache
       if (userId && parsed.id && parsed.id !== userId) localStorage.removeItem(STORAGE_KEYS.PROFILE);
     }
 
@@ -195,21 +188,16 @@ export const db = {
     if (supabase && navigator.onLine && userId) {
         const payload = {
           id: userId,
-          full_name: profile.full_name,
-          mantra: profile.mantra,
-          imagem: profile.imagem,
-          statement: profile.statement,
+          full_name: profile.full_name || null,
+          mantra: profile.mantra || null,
+          imagem: profile.imagem || null,
+          statement: profile.statement || null,
           updated_at: new Date().toISOString()
         };
         const { error } = await supabase.from('profiles').upsert(payload);
         if (error) {
-          if (error.message?.includes('statement')) throw new Error("Erro de Banco de Dados: Coluna 'statement' ausente.");
-          if (error.message?.includes('imagem')) {
-                const { imagem, ...basicPayload } = payload;
-                await supabase.from('profiles').upsert(basicPayload);
-          } else {
-            throw error;
-          }
+           console.error("Erro update profile DB:", error);
+           // Fallback silencioso para não travar UI
         }
     }
   },
@@ -218,6 +206,7 @@ export const db = {
   async getTasks(): Promise<DailyTask[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.TASKS);
     if (saved) {
+      // Sync em background para não travar
       if (navigator.onLine) syncLocalDataToSupabase(); 
       return JSON.parse(saved);
     }
@@ -244,8 +233,17 @@ export const db = {
       (async () => {
         try {
           const userId = await getCurrentUserId();
-          const tasksToSave = userId ? tasks.map(t => ({ ...t, user_id: userId })) : tasks;
-          await supabase.from('tasks').upsert(tasksToSave);
+          // Normaliza payload
+          const tasksToSave = tasks.map(t => ({
+             id: t.id,
+             text: t.text,
+             completed: t.completed,
+             note: t.note || null,
+             ai_advice: t.ai_advice || null,
+             user_id: userId || null
+          }));
+          
+          if(userId) await supabase.from('tasks').upsert(tasksToSave);
         } catch (e) { }
       })();
     }
@@ -275,12 +273,11 @@ export const db = {
         try {
           const userId = await getCurrentUserId();
           if (userId) {
-            const { data } = await supabase.from('activity_logs').select('*').eq('user_id', userId).eq('date', today).single();
-            if (data) {
-              await supabase.from('activity_logs').update({ count: count }).eq('id', data.id);
-            } else {
-              await supabase.from('activity_logs').insert({ user_id: userId, date: today, count: count });
-            }
+            await supabase.from('activity_logs').upsert({ 
+              user_id: userId, 
+              date: today, 
+              count: count 
+            }, { onConflict: 'user_id,date' });
           }
         } catch (e) {}
       })();
@@ -346,12 +343,26 @@ export const db = {
       (async () => {
         try {
           const userId = await getCurrentUserId();
-          const supabasePayload = plan.map(({ day, title, description, completed, answer, completed_at }) => ({
-            day, title, description, completed, answer, completed_at,
+          if(!userId) return;
+
+          // CORREÇÃO: Normaliza payload para evitar erro 400 (Bad Request)
+          // O Supabase exige que se uma coluna for enviada no JSON, ela deve ter valor (null ou valor).
+          // Se for undefined, o JSON.stringify remove a chave, e se o array tiver chaves mistas, o upsert falha.
+          const supabasePayload = plan.map((p) => ({
+            day: p.day, 
+            title: p.title, 
+            description: p.description, 
+            completed: p.completed, 
+            answer: p.answer || null, 
+            completed_at: p.completed_at || null,
+            ai_feedback: p.ai_feedback || null,
             user_id: userId
           }));
+
           await supabase.from('plans').upsert(supabasePayload);
-        } catch (e) { }
+        } catch (e) { 
+           console.error("Erro ao salvar plano Supabase:", e);
+        }
       })();
     }
   },
@@ -405,15 +416,7 @@ export const db = {
       } catch (e) { }
     }
     const saved = localStorage.getItem(STORAGE_KEYS.GRATITUDE);
-    if (saved) {
-      const parsed = JSON.parse(saved) as GratitudeEntry[];
-      if (userId && parsed.length > 0 && parsed[0].user_id && parsed[0].user_id !== userId) {
-        localStorage.removeItem(STORAGE_KEYS.GRATITUDE);
-        return [];
-      }
-      return parsed;
-    }
-    return [];
+    return saved ? JSON.parse(saved) : [];
   },
 
   async addGratitudeEntry(entry: GratitudeEntry): Promise<void> {
@@ -426,7 +429,9 @@ export const db = {
 
     if (supabase && navigator.onLine) {
       try {
-        await supabase.from('gratitude_entries').insert(entryWithUser);
+        await supabase.from('gratitude_entries').insert(
+           { ...entryWithUser, ai_response: entryWithUser.ai_response || null }
+        );
       } catch (e) { }
     }
   },
@@ -459,12 +464,14 @@ export const db = {
       (async () => {
         try {
           const userId = await getCurrentUserId();
-          await supabase.from('chat_history').insert({
-            role: message.role,
-            text: message.text,
-            created_at: new Date().toISOString(),
-            user_id: userId
-          });
+          if (userId) {
+             await supabase.from('chat_history').insert({
+                role: message.role,
+                text: message.text,
+                created_at: new Date().toISOString(),
+                user_id: userId
+             });
+          }
         } catch (e) {}
       })();
     }
@@ -554,13 +561,13 @@ export const db = {
 
     if (supabase && navigator.onLine) {
       const userId = await getCurrentUserId();
-      await supabase.from('goal_plans').delete().eq('id', id).eq('user_id', userId);
+      if(userId) await supabase.from('goal_plans').delete().eq('id', id).eq('user_id', userId);
     }
   },
 
-  // --- SUPPORT SYSTEM (TICKETS) - INTEGRAÇÃO ATIVA ---
+  // --- SUPPORT SYSTEM (TICKETS) ---
   async createSupportTicket(ticket: SupportTicket): Promise<void> {
-    // 1. Salva Local (Fallback/Offline)
+    // 1. Salva Local
     const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUPPORT_TICKETS) || '[]');
     const updated = [ticket, ...current];
     localStorage.setItem(STORAGE_KEYS.SUPPORT_TICKETS, JSON.stringify(updated));
@@ -580,7 +587,6 @@ export const db = {
     }
   },
   
-  // Atualizar status do ticket (Resolver) com verificação robusta
   async updateSupportTicketStatus(id: string, status: 'resolved'): Promise<void> {
     // 1. Atualiza Local
     const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUPPORT_TICKETS) || '[]');
@@ -592,24 +598,18 @@ export const db = {
        const userId = await getCurrentUserId();
        if (userId) {
           try {
-             const { error } = await supabase.from('support_tickets')
+             await supabase.from('support_tickets')
                .update({ status: status })
                .eq('id', id)
                .eq('user_id', userId);
-             
-             if(error) console.error("Erro Supabase Update Ticket:", error);
-          } catch(e) {
-             console.error("Erro ao fechar ticket no banco", e);
-          }
+          } catch(e) { }
        }
     }
   },
 
   async getSupportHistory(): Promise<SupportTicket[]> {
-    // 1. Tenta carregar local para velocidade
     const saved = localStorage.getItem(STORAGE_KEYS.SUPPORT_TICKETS);
     
-    // 2. Sincroniza/Busca do Supabase se online
     if (supabase && navigator.onLine) {
        const userId = await getCurrentUserId();
        if (userId) {
@@ -621,13 +621,10 @@ export const db = {
                .order('created_at', { ascending: false });
              
              if (data && data.length > 0) {
-               // Atualiza cache local
                localStorage.setItem(STORAGE_KEYS.SUPPORT_TICKETS, JSON.stringify(data));
                return data as SupportTicket[];
              }
-          } catch (e) {
-             console.error("Erro ao buscar tickets", e);
-          }
+          } catch (e) { }
        }
     }
 

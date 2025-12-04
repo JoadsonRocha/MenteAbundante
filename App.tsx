@@ -50,8 +50,10 @@ const AppContent: React.FC = () => {
   const [desireStatement, setDesireStatement] = useState<string | null>(null);
   const [showDesireModal, setShowDesireModal] = useState(false);
 
-  // Ref para garantir que o OneSignal inicialize apenas uma vez (evita StrictMode double-call)
+  // Ref para garantir que o OneSignal inicialize apenas uma vez
   const oneSignalInitRef = useRef(false);
+  // Estado para controlar se o OneSignal foi carregado com sucesso
+  const [oneSignalInitialized, setOneSignalInitialized] = useState(false);
 
   // --- INICIALIZAÇÃO ONESIGNAL ---
   useEffect(() => {
@@ -59,6 +61,7 @@ const AppContent: React.FC = () => {
     oneSignalInitRef.current = true;
 
     const initOneSignal = async () => {
+      // Substitua este ID pelo seu App ID do OneSignal configurado para este domínio
       const ONESIGNAL_APP_ID = "f0d535c5-1b47-48be-89df-7bca30bf2b38"; 
 
       try {
@@ -68,31 +71,39 @@ const AppContent: React.FC = () => {
           serviceWorkerParam: { scope: '/' },
           serviceWorkerPath: 'sw.js',
         });
-        console.log("OneSignal Status: Ativo");
+        setOneSignalInitialized(true); 
+        console.log("OneSignal Status: Ativo e Pronto");
       } catch (e) {
-        console.warn("OneSignal Status: Não foi possível conectar (Verifique App ID/Domínio).", e);
+        // Silencia erro se o App ID for inválido para o domínio atual
+        console.warn("OneSignal Info: Notificações desativadas (Verifique App ID/Domínio).");
       }
     };
 
     initOneSignal();
   }, []);
 
-  // --- LOGIN NO ONESIGNAL ---
+  // --- LOGIN NO ONESIGNAL (CORREÇÃO DE USUÁRIOS) ---
   useEffect(() => {
-    if (user?.id) {
-        // Pequeno delay para garantir que o init já processou
+    if (user?.id && oneSignalInitialized) {
+        // Delay para garantir que o SDK carregou completamente
         const timer = setTimeout(() => {
           try {
-              if (window.OneSignal) {
-                OneSignal.login(user.id);
-              }
+             // 1. Identificar o usuário com o ID do Supabase
+             OneSignal.login(user.id);
+             
+             // 2. Adicionar Email como tag para facilitar busca no painel
+             if (user.email) {
+                OneSignal.User.addTag("email", user.email);
+             }
+
+             console.log("OneSignal: Usuário identificado ->", user.id);
           } catch (e) {
-              console.warn("OneSignal Login pendente.");
+             console.warn("OneSignal: Falha ao logar usuário.", e);
           }
         }, 2000);
         return () => clearTimeout(timer);
     }
-  }, [user?.id]);
+  }, [user?.id, oneSignalInitialized]);
 
   useEffect(() => {
     localStorage.setItem('mente_active_tab', activeTab);
@@ -168,7 +179,7 @@ const AppContent: React.FC = () => {
   const handleLogout = async () => {
     setActiveTab('dashboard');
     try {
-      if (window.OneSignal) {
+      if (oneSignalInitialized) {
          OneSignal.logout();
       }
     } catch(e) {
