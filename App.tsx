@@ -25,13 +25,6 @@ import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
 
-// Fix TypeScript error for window.OneSignal
-declare global {
-  interface Window {
-    OneSignal: any;
-  }
-}
-
 // Componente interno para gerenciar o estado da aplicação pós-login
 const AppContent: React.FC = () => {
   const { user, loading, signOut } = useAuth();
