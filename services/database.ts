@@ -35,6 +35,8 @@ const STORAGE_KEYS = {
   SUPPORT_TICKETS: 'mente_support_tickets'
 };
 
+let schemaMismatchDetected = false;
+
 // Helper para pegar ID do usuário atual
 const getCurrentUserId = async (): Promise<string | null> => {
   if (!supabase) return null;
@@ -54,8 +56,38 @@ export const generateUUID = () => {
 };
 
 // --- FUNÇÃO DE SINCRONIZAÇÃO (Sync Engine) ---
+// Persiste activity_logs sem depender de chaves �nicas ausentes no banco
+const persistActivityLog = async (userId: string, log: ActivityLog) => {
+  if (!supabase) return { error: null };
+
+  const { data, error: selectError } = await supabase
+    .from('activity_logs')
+    .select('count')
+    .eq('user_id', userId)
+    .eq('date', log.date)
+    .maybeSingle();
+
+  if (selectError) return { error: selectError };
+
+  if (data) {
+    const { error } = await supabase
+      .from('activity_logs')
+      .update({ count: log.count })
+      .eq('user_id', userId)
+      .eq('date', log.date);
+    return { error };
+  }
+
+  const { error } = await supabase.from('activity_logs').insert({
+    user_id: userId,
+    date: log.date,
+    count: log.count
+  });
+  return { error };
+};
+
 export const syncLocalDataToSupabase = async () => {
-  if (!supabase || !navigator.onLine) return;
+  if (!supabase || !navigator.onLine || schemaMismatchDetected) return;
   
   const userId = await getCurrentUserId();
   if (!userId) return;
@@ -77,9 +109,7 @@ export const syncLocalDataToSupabase = async () => {
       const tasksWithUser = localTasks.map((t: any) => ({ 
         id: t.id,
         text: t.text,
-        completed: t.completed,
-        note: t.note || null,
-        ai_advice: t.ai_advice || null,
+        completed: !!t.completed,
         user_id: userId 
       }));
       const { error } = await supabase.from('tasks').upsert(tasksWithUser);
@@ -108,11 +138,7 @@ export const syncLocalDataToSupabase = async () => {
     const localLogs = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITY) || '[]');
     if (localLogs.length > 0) {
        for (const log of localLogs) {
-         const { error } = await supabase.from('activity_logs').upsert({ 
-            user_id: userId, 
-            date: log.date, 
-            count: log.count 
-         }, { onConflict: 'user_id,date' });
+         const { error } = await persistActivityLog(userId, log);
          if (error) { 
            handleSyncError('activity_logs', error);
            break; // Stop loop on error
@@ -180,7 +206,7 @@ export const db = {
       if (userId && parsed.id && parsed.id !== userId) localStorage.removeItem(STORAGE_KEYS.PROFILE);
     }
 
-    if (supabase && navigator.onLine && userId) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected && userId) {
       try {
         const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
         if (!error && data) {
@@ -199,7 +225,7 @@ export const db = {
     
     if (typeof window !== 'undefined') window.dispatchEvent(new Event('profile-updated'));
 
-    if (supabase && navigator.onLine && userId) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected && userId) {
         const payload = {
           id: userId,
           full_name: profile.full_name || null,
@@ -223,7 +249,7 @@ export const db = {
       return JSON.parse(saved);
     }
 
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       try {
         const userId = await getCurrentUserId();
         let query = supabase.from('tasks').select('*').order('id');
@@ -242,16 +268,14 @@ export const db = {
   async saveTasks(tasks: DailyTask[]): Promise<void> {
     localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
     localStorage.setItem(STORAGE_KEYS.LAST_CHECKLIST_DATE, new Date().toISOString().split('T')[0]);
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       (async () => {
         try {
           const userId = await getCurrentUserId();
           const tasksToSave = tasks.map(t => ({
              id: t.id,
              text: t.text,
-             completed: t.completed,
-             note: t.note || null,
-             ai_advice: t.ai_advice || null,
+             completed: !!t.completed,
              user_id: userId || null
           }));
           
@@ -280,16 +304,12 @@ export const db = {
       localStorage.setItem(STORAGE_KEYS.ACTIVITY, JSON.stringify(logs));
     } catch (e) { console.error(e); }
 
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       (async () => {
         try {
           const userId = await getCurrentUserId();
           if (userId) {
-            await supabase.from('activity_logs').upsert({ 
-              user_id: userId, 
-              date: today, 
-              count: count 
-            }, { onConflict: 'user_id,date' });
+            await persistActivityLog(userId, { date: today, count: count });
           }
         } catch (e) {}
       })();
@@ -312,7 +332,7 @@ export const db = {
     const saved = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
     if (saved) return JSON.parse(saved);
 
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       try {
         const userId = await getCurrentUserId();
         if (userId) {
@@ -336,7 +356,7 @@ export const db = {
        return localData;
     }
 
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       const userId = await getCurrentUserId();
       if (userId) {
          const { data } = await supabase.from('plans').select('*').eq('user_id', userId).order('day');
@@ -351,7 +371,7 @@ export const db = {
 
   async savePlan(plan: DayPlan[]): Promise<void> {
     localStorage.setItem(STORAGE_KEYS.PLAN, JSON.stringify(plan));
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       (async () => {
         try {
           const userId = await getCurrentUserId();
@@ -383,7 +403,7 @@ export const db = {
     
     if (saved) return JSON.parse(saved);
     
-    if (supabase && navigator.onLine && userId) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected && userId) {
        try {
            const { data } = await supabase.from('beliefs').select('*').eq('user_id', userId);
            if (data) {
@@ -401,7 +421,7 @@ export const db = {
     const updated = [entry, ...current];
     localStorage.setItem(STORAGE_KEYS.BELIEFS, JSON.stringify(updated));
 
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       (async () => {
         try {
           const userId = await getCurrentUserId();
@@ -415,7 +435,7 @@ export const db = {
   // --- GRATIDÃO ---
   async getGratitudeHistory(): Promise<GratitudeEntry[]> {
     const userId = await getCurrentUserId();
-    if (supabase && navigator.onLine && userId) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected && userId) {
       try {
         const { data } = await supabase.from('gratitude_entries').select('*').eq('user_id', userId).order('date', { ascending: false });
         if (data) {
@@ -436,7 +456,7 @@ export const db = {
     const updated = [entryWithUser, ...current];
     localStorage.setItem(STORAGE_KEYS.GRATITUDE, JSON.stringify(updated));
 
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       try {
         await supabase.from('gratitude_entries').insert(
            { ...entryWithUser, ai_response: entryWithUser.ai_response || null }
@@ -449,7 +469,7 @@ export const db = {
   async getChatHistory(): Promise<ChatMessage[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.CHAT);
     if(saved) return JSON.parse(saved);
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       try {
         const userId = await getCurrentUserId();
         if (userId) {
@@ -469,7 +489,7 @@ export const db = {
     const updated = [...current, message];
     localStorage.setItem(STORAGE_KEYS.CHAT, JSON.stringify(updated));
 
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       (async () => {
         try {
           const userId = await getCurrentUserId();
@@ -488,7 +508,7 @@ export const db = {
 
   async clearChat(): Promise<void> {
     localStorage.removeItem(STORAGE_KEYS.CHAT);
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       (async () => {
         try {
           const userId = await getCurrentUserId();
@@ -500,7 +520,7 @@ export const db = {
 
   // --- FEEDBACK ---
   async saveFeedback(feedback: FeedbackEntry): Promise<void> {
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       const userId = await getCurrentUserId();
       if (!userId) throw new Error("Usuário não autenticado");
 
@@ -525,7 +545,7 @@ export const db = {
     const saved = localStorage.getItem(STORAGE_KEYS.GOAL_PLANS);
     if (saved) return JSON.parse(saved);
 
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
        const userId = await getCurrentUserId();
        if (userId) {
           const { data } = await supabase.from('goal_plans').select('*').eq('user_id', userId).order('created_at', { ascending: false });
@@ -551,7 +571,7 @@ export const db = {
     localStorage.setItem(STORAGE_KEYS.GOAL_PLANS, JSON.stringify(updated));
 
     // Supabase
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       const userId = await getCurrentUserId();
       const payload = { ...plan, user_id: userId };
       
@@ -568,7 +588,7 @@ export const db = {
     const updated = current.filter(p => p.id !== id);
     localStorage.setItem(STORAGE_KEYS.GOAL_PLANS, JSON.stringify(updated));
 
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       const userId = await getCurrentUserId();
       if(userId) await supabase.from('goal_plans').delete().eq('id', id).eq('user_id', userId);
     }
@@ -582,7 +602,7 @@ export const db = {
     localStorage.setItem(STORAGE_KEYS.SUPPORT_TICKETS, JSON.stringify(updated));
     
     // 2. Salva Supabase
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
       const userId = await getCurrentUserId();
       if (userId) {
          try {
@@ -603,7 +623,7 @@ export const db = {
     localStorage.setItem(STORAGE_KEYS.SUPPORT_TICKETS, JSON.stringify(updated));
 
     // 2. Atualiza Supabase
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
        const userId = await getCurrentUserId();
        if (userId) {
           try {
@@ -619,7 +639,7 @@ export const db = {
   async getSupportHistory(): Promise<SupportTicket[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.SUPPORT_TICKETS);
     
-    if (supabase && navigator.onLine) {
+    if (supabase && navigator.onLine && !schemaMismatchDetected) {
        const userId = await getCurrentUserId();
        if (userId) {
           try {
@@ -640,3 +660,15 @@ export const db = {
     return saved ? JSON.parse(saved) : [];
   }
 };
+
+
+
+
+
+
+
+
+
+
+
+

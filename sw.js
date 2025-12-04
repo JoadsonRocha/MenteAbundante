@@ -1,6 +1,13 @@
 // Importa o Service Worker do OneSignal
 importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js');
 
+// Escuta mensagens logo na avaliaÇõÇœo inicial para evitar warnings do navegador
+self.addEventListener('message', (event) => {
+  if (event?.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // --- LÓGICA DO PWA (CACHE & OFFLINE) ---
 const CACHE_NAME = 'mindrise-v8-onesignal';
 const ASSETS_TO_CACHE = [
