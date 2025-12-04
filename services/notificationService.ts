@@ -6,8 +6,10 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
     // No OneSignal, podemos chamar o Slidedown de permissão
     await OneSignal.Slidedown.promptPush();
     // Ou usar a API nativa
-    const state = await OneSignal.User.PushSubscription.optIn();
-    return state;
+    await OneSignal.User.PushSubscription.optIn();
+    
+    // Retorna o status atual da inscrição (converte para booleano para garantir tipo correto)
+    return Boolean(OneSignal.User.PushSubscription.optedIn);
   } catch (error) {
     console.error("Erro ao solicitar permissão OneSignal:", error);
     return false;

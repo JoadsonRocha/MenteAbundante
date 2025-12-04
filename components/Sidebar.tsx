@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Brain, Calendar, CheckSquare, Eye, MessageSquareText, Menu, X, Info, LogOut, TrendingUp, Settings, Heart, Download, MessageSquarePlus, Rocket, Headset, Wind } from 'lucide-react';
+import { LayoutDashboard, Brain, Calendar, CheckSquare, Eye, MessageSquareText, Menu, X, Info, LogOut, TrendingUp, Settings, Heart, Download, MessageSquarePlus, Rocket, Headset, Wind, Globe } from 'lucide-react';
 import { Tab } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { db } from '../services/database';
 import Logo from './Logo';
 
@@ -16,6 +17,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, toggleSidebar, onOpenTour, installApp }) => {
   const { signOut, user } = useAuth();
+  const { t, language, setLanguage } = useLanguage();
   const [profileName, setProfileName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [mantra, setMantra] = useState<string | null>(null);
@@ -49,19 +51,19 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
 
   // Ordem atualizada dos itens do menu: SOS abaixo de Reprogramar
   const menuItems: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'dashboard', label: 'Início', icon: <LayoutDashboard size={20} /> },
-    { id: 'smart_planner', label: 'Planejador IA', icon: <Rocket size={20} /> },
-    { id: 'coach', label: 'AI Coach', icon: <MessageSquareText size={20} /> },
-    { id: 'reprogram', label: 'Reprogramar', icon: <Brain size={20} /> },
-    { id: 'anxiety', label: 'Ansiedade SOS', icon: <Wind size={20} /> }, // MOVIDO PARA CÁ
-    { id: 'plan', label: 'Plano 7 Dias', icon: <Calendar size={20} /> },
-    { id: 'checklist', label: 'Checklist', icon: <CheckSquare size={20} /> },
-    { id: 'gratitude', label: 'Gratidão', icon: <Heart size={20} /> },
-    { id: 'visualization', label: 'Visualização', icon: <Eye size={20} /> },
-    { id: 'stats', label: 'Evolução', icon: <TrendingUp size={20} /> },
-    { id: 'feedback', label: 'Feedback', icon: <MessageSquarePlus size={20} /> },
-    { id: 'support', label: 'Suporte', icon: <Headset size={20} /> },
-    { id: 'about', label: 'Sobre', icon: <Info size={20} /> },
+    { id: 'dashboard', label: t('menu_dashboard'), icon: <LayoutDashboard size={20} /> },
+    { id: 'smart_planner', label: t('menu_planner'), icon: <Rocket size={20} /> },
+    { id: 'coach', label: t('menu_coach'), icon: <MessageSquareText size={20} /> },
+    { id: 'reprogram', label: t('menu_reprogram'), icon: <Brain size={20} /> },
+    { id: 'anxiety', label: t('menu_anxiety'), icon: <Wind size={20} /> }, 
+    { id: 'plan', label: t('menu_plan'), icon: <Calendar size={20} /> },
+    { id: 'checklist', label: t('menu_checklist'), icon: <CheckSquare size={20} /> },
+    { id: 'gratitude', label: t('menu_gratitude'), icon: <Heart size={20} /> },
+    { id: 'visualization', label: t('menu_visualization'), icon: <Eye size={20} /> },
+    { id: 'stats', label: t('menu_stats'), icon: <TrendingUp size={20} /> },
+    { id: 'feedback', label: t('menu_feedback'), icon: <MessageSquarePlus size={20} /> },
+    { id: 'support', label: t('menu_support'), icon: <Headset size={20} /> },
+    { id: 'about', label: t('menu_about'), icon: <Info size={20} /> },
   ];
 
   const handleLogout = async () => {
@@ -131,13 +133,35 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium duration-300 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 hover:pl-5 mt-4 border border-dashed border-emerald-200"
             >
               <Download size={20} className="text-emerald-500" />
-              <span>Instalar App</span>
+              <span>{t('menu_install')}</span>
             </button>
           )}
         </nav>
 
         <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0 space-y-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
           
+          {/* Language Selector */}
+          <div className="flex justify-center gap-2 mb-2 pb-2 border-b border-slate-200/50">
+             <button 
+               onClick={() => setLanguage('pt')} 
+               className={`text-xs font-bold px-2 py-1 rounded transition-colors ${language === 'pt' ? 'bg-[#F87A14] text-white' : 'text-slate-400 hover:bg-slate-200'}`}
+             >
+               PT
+             </button>
+             <button 
+               onClick={() => setLanguage('en')} 
+               className={`text-xs font-bold px-2 py-1 rounded transition-colors ${language === 'en' ? 'bg-[#F87A14] text-white' : 'text-slate-400 hover:bg-slate-200'}`}
+             >
+               EN
+             </button>
+             <button 
+               onClick={() => setLanguage('es')} 
+               className={`text-xs font-bold px-2 py-1 rounded transition-colors ${language === 'es' ? 'bg-[#F87A14] text-white' : 'text-slate-400 hover:bg-slate-200'}`}
+             >
+               ES
+             </button>
+          </div>
+
           <button 
             onClick={handleProfileClick}
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left group border ${activeTab === 'profile' ? 'bg-white border-orange-200 ring-2 ring-orange-100 shadow-md' : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200 hover:shadow-sm'}`}
@@ -167,7 +191,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
             className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors text-xs font-medium justify-center"
           >
             <LogOut size={14} />
-            <span>Sair da conta</span>
+            <span>{t('menu_logout')}</span>
           </button>
         </div>
       </div>

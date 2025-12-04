@@ -21,6 +21,7 @@ import SmartPlanner from './components/SmartPlanner';
 import SupportAgent from './components/SupportAgent';
 import AnxietyControl from './components/AnxietyControl'; 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
 
@@ -34,6 +35,7 @@ declare global {
 // Componente interno para gerenciar o estado da aplicação pós-login
 const AppContent: React.FC = () => {
   const { user, loading, signOut } = useAuth();
+  const { t, language } = useLanguage();
   
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     if (typeof window !== 'undefined') {
@@ -50,9 +52,7 @@ const AppContent: React.FC = () => {
   const [desireStatement, setDesireStatement] = useState<string | null>(null);
   const [showDesireModal, setShowDesireModal] = useState(false);
 
-  // Ref para garantir que o OneSignal inicialize apenas uma vez
   const oneSignalInitRef = useRef(false);
-  // Estado para controlar se o OneSignal foi carregado com sucesso
   const [oneSignalInitialized, setOneSignalInitialized] = useState(false);
 
   // --- INICIALIZAÇÃO ONESIGNAL ---
@@ -61,7 +61,6 @@ const AppContent: React.FC = () => {
     oneSignalInitRef.current = true;
 
     const initOneSignal = async () => {
-      // Substitua este ID pelo seu App ID do OneSignal configurado para este domínio
       const ONESIGNAL_APP_ID = "f0d535c5-1b47-48be-89df-7bca30bf2b38"; 
 
       try {
@@ -74,7 +73,6 @@ const AppContent: React.FC = () => {
         setOneSignalInitialized(true); 
         console.log("OneSignal Status: Ativo e Pronto");
       } catch (e) {
-        // Silencia erro se o App ID for inválido para o domínio atual
         console.warn("OneSignal Info: Notificações desativadas (Verifique App ID/Domínio).");
       }
     };
@@ -82,20 +80,17 @@ const AppContent: React.FC = () => {
     initOneSignal();
   }, []);
 
-  // --- LOGIN NO ONESIGNAL (CORREÇÃO DE USUÁRIOS) ---
+  // --- LOGIN NO ONESIGNAL ---
   useEffect(() => {
     if (user?.id && oneSignalInitialized) {
-        // Delay para garantir que o SDK carregou completamente
         const timer = setTimeout(() => {
           try {
-             // 1. Identificar o usuário com o ID do Supabase
-             OneSignal.login(user.id);
-             
-             // 2. Adicionar Email como tag para facilitar busca no painel
+             if ((window as any).OneSignal) {
+                OneSignal.login(user.id);
+             }
              if (user.email) {
                 OneSignal.User.addTag("email", user.email);
              }
-
              console.log("OneSignal: Usuário identificado ->", user.id);
           } catch (e) {
              console.warn("OneSignal: Falha ao logar usuário.", e);
@@ -112,10 +107,11 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (user) {
       syncLocalDataToSupabase();
-      db.getTasks();
-      db.getPlan();
+      // Passa o idioma atual para carregar as tarefas corretas na inicialização
+      db.getTasks(language);
+      db.getPlan(language);
     }
-  }, [user?.id]);
+  }, [user?.id, language]); // Recarrega se o idioma mudar
 
   useEffect(() => {
     const handleOnline = () => {
@@ -179,12 +175,10 @@ const AppContent: React.FC = () => {
   const handleLogout = async () => {
     setActiveTab('dashboard');
     try {
-      if (oneSignalInitialized) {
+      if ((window as any).OneSignal && oneSignalInitialized) {
          OneSignal.logout();
       }
-    } catch(e) {
-      // Ignora erro silenciosamente
-    }
+    } catch(e) {}
     await signOut();
   };
 
@@ -261,15 +255,15 @@ const AppContent: React.FC = () => {
         {isOffline && (
           <div className="bg-slate-800 text-white text-xs py-1 px-4 text-center flex items-center justify-center gap-2 pt-[calc(0.25rem+env(safe-area-inset-top))] lg:pt-1">
             <WifiOff size={12} />
-            <span>Modo Offline: Alterações salvas no dispositivo.</span>
+            <span>{t('offline_mode')}</span>
           </div>
         )}
 
         <div className="lg:hidden bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 z-30 shadow-sm pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="flex items-center gap-3">
             <div>
-              <h1 className="font-extrabold text-[#F87A14] text-xl tracking-tight leading-none">MindRise</h1>
-              <p className="text-[10px] text-slate-500 font-medium tracking-wide">& Vitoriosa</p>
+              <h1 className="font-extrabold text-[#F87A14] text-xl tracking-tight leading-none">{t('app_name')}</h1>
+              <p className="text-[10px] text-slate-500 font-medium tracking-wide">{t('subtitle')}</p>
             </div>
           </div>
           
@@ -277,7 +271,7 @@ const AppContent: React.FC = () => {
             <button 
               onClick={handleLogout}
               className="text-slate-400 hover:text-red-500 p-2 rounded-lg transition-colors active:scale-95"
-              title="Sair"
+              title={t('menu_logout')}
             >
               <LogOut size={20} />
             </button>
@@ -300,7 +294,7 @@ const AppContent: React.FC = () => {
               <div className="p-2 rounded-full bg-white border border-slate-200 group-hover:border-orange-200 shadow-sm transition-all group-hover:-translate-x-1">
                 <ArrowLeft size={16} />
               </div>
-              <span className="text-sm font-medium">Voltar ao Início</span>
+              <span className="text-sm font-medium">{t('back_home')}</span>
             </button>
           )}
 
@@ -326,7 +320,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AppContent />
+      <LanguageProvider>
+        <AppContent />
+      </LanguageProvider>
     </AuthProvider>
   );
 };

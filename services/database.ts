@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { DailyTask, DayPlan, BeliefEntry, ChatMessage, ActivityLog, UserProfile, GratitudeEntry, FeedbackEntry, GoalPlan, SupportTicket } from '../types';
-import { INITIAL_TASKS, SEVEN_DAY_PLAN } from '../constants';
+import { DailyTask, DayPlan, BeliefEntry, ChatMessage, ActivityLog, UserProfile, GratitudeEntry, FeedbackEntry, GoalPlan, SupportTicket, Language } from '../types';
+import { INITIAL_TASKS_BY_LANG, SEVEN_DAY_PLAN_BY_LANG } from '../constants';
 
 // --- CONFIGURAÇÃO DO SUPABASE ---
 const DEFAULT_URL = "https://qyjlkxjnpohqxvaiqcmx.supabase.co";
@@ -75,7 +75,7 @@ export const syncLocalDataToSupabase = async () => {
       await supabase.from('tasks').upsert(tasksWithUser);
     }
 
-    // 2. Sync Plan (CORREÇÃO ERRO 400: Normalizar campos opcionais para null)
+    // 2. Sync Plan
     const localPlan = JSON.parse(localStorage.getItem(STORAGE_KEYS.PLAN) || '[]');
     const modifiedDays = localPlan.filter((p: any) => p.completed || p.answer);
     if (modifiedDays.length > 0) {
@@ -96,7 +96,6 @@ export const syncLocalDataToSupabase = async () => {
     const localLogs = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITY) || '[]');
     if (localLogs.length > 0) {
        for (const log of localLogs) {
-         // Upsert simples é melhor que select+update em loop
          await supabase.from('activity_logs').upsert({ 
             user_id: userId, 
             date: log.date, 
@@ -139,7 +138,6 @@ export const syncLocalDataToSupabase = async () => {
     }
 
   } catch (e: any) {
-    // Se o erro for de autenticação (400/401), pode ser necessário deslogar
     if (e?.message?.includes('JWT') || e?.code === '400') {
       console.error("Erro de Autenticação no Sync:", e);
     } else {
@@ -162,7 +160,6 @@ export const db = {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (userId && parsed.id === userId) return parsed;
-      // Se mudou o usuário, limpa o cache
       if (userId && parsed.id && parsed.id !== userId) localStorage.removeItem(STORAGE_KEYS.PROFILE);
     }
 
@@ -197,16 +194,14 @@ export const db = {
         const { error } = await supabase.from('profiles').upsert(payload);
         if (error) {
            console.error("Erro update profile DB:", error);
-           // Fallback silencioso para não travar UI
         }
     }
   },
 
   // --- CHECKLIST ---
-  async getTasks(): Promise<DailyTask[]> {
+  async getTasks(language: Language = 'pt'): Promise<DailyTask[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.TASKS);
     if (saved) {
-      // Sync em background para não travar
       if (navigator.onLine) syncLocalDataToSupabase(); 
       return JSON.parse(saved);
     }
@@ -223,7 +218,8 @@ export const db = {
         }
       } catch(e) {}
     }
-    return INITIAL_TASKS;
+    // Return language specific initial tasks
+    return INITIAL_TASKS_BY_LANG[language] || INITIAL_TASKS_BY_LANG.pt;
   },
 
   async saveTasks(tasks: DailyTask[]): Promise<void> {
@@ -233,7 +229,6 @@ export const db = {
       (async () => {
         try {
           const userId = await getCurrentUserId();
-          // Normaliza payload
           const tasksToSave = tasks.map(t => ({
              id: t.id,
              text: t.text,
@@ -316,7 +311,7 @@ export const db = {
   },
 
   // --- PLANO 7 DIAS ---
-  async getPlan(): Promise<DayPlan[]> {
+  async getPlan(language: Language = 'pt'): Promise<DayPlan[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.PLAN);
     let localData = saved ? JSON.parse(saved) : null;
     if (localData) {
@@ -334,7 +329,7 @@ export const db = {
          }
       }
     }
-    return SEVEN_DAY_PLAN;
+    return SEVEN_DAY_PLAN_BY_LANG[language] || SEVEN_DAY_PLAN_BY_LANG.pt;
   },
 
   async savePlan(plan: DayPlan[]): Promise<void> {
@@ -345,9 +340,6 @@ export const db = {
           const userId = await getCurrentUserId();
           if(!userId) return;
 
-          // CORREÇÃO: Normaliza payload para evitar erro 400 (Bad Request)
-          // O Supabase exige que se uma coluna for enviada no JSON, ela deve ter valor (null ou valor).
-          // Se for undefined, o JSON.stringify remove a chave, e se o array tiver chaves mistas, o upsert falha.
           const supabasePayload = plan.map((p) => ({
             day: p.day, 
             title: p.title, 

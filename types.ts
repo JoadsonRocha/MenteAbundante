@@ -1,6 +1,8 @@
 
 export type Tab = 'dashboard' | 'reprogram' | 'plan' | 'checklist' | 'visualization' | 'coach' | 'gratitude' | 'about' | 'stats' | 'profile' | 'feedback' | 'smart_planner' | 'support' | 'anxiety';
 
+export type Language = 'pt' | 'en' | 'es';
+
 export interface UserProfile {
   id?: string;
   full_name: string;

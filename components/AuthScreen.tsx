@@ -3,10 +3,12 @@ import { supabase } from '../services/database';
 import { Loader2, Mail, Lock, ArrowRight, UserPlus, LogIn, AlertCircle, CheckCircle, KeyRound, ArrowLeft } from 'lucide-react';
 import Logo from './Logo';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const AuthScreen: React.FC = () => {
+  const { t, setLanguage, language } = useLanguage();
   const [isLogin, setIsLogin] = useState(true);
-  const [isRecovery, setIsRecovery] = useState(false); // Novo estado para tela de recuperação
+  const [isRecovery, setIsRecovery] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,9 +44,7 @@ const AuthScreen: React.FC = () => {
         setEmail('');
         setPassword('');
         
-        if (data.session) {
-           // Login automático
-        } else {
+        if (!data.session) {
            setSuccessMessage("Conta criada com sucesso! Verifique seu email para confirmar ou faça login.");
            setIsLogin(true);
         }
@@ -65,7 +65,6 @@ const AuthScreen: React.FC = () => {
     setSuccessMessage(null);
 
     try {
-      // Redireciona para a própria página, onde o usuário logado poderá trocar a senha no perfil
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: window.location.origin,
       });
@@ -106,9 +105,16 @@ const AuthScreen: React.FC = () => {
             <div className="mb-4 shadow-lg shadow-orange-500/20 rounded-3xl">
               <Logo size={72} />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">MindRise</h1>
-            <p className="text-slate-400 text-sm">Mentalidade Abundante & Vitoriosa</p>
+            <h1 className="text-2xl font-bold text-white mb-2">{t('app_name')}</h1>
+            <p className="text-slate-400 text-sm">{t('hero_title')}</p>
           </div>
+        </div>
+
+        {/* Language Selector in Auth */}
+        <div className="flex justify-center gap-2 pt-4">
+             <button onClick={() => setLanguage('pt')} className={`text-xs font-bold px-2 py-1 rounded transition-colors ${language === 'pt' ? 'bg-[#F87A14] text-white' : 'text-slate-400 hover:bg-slate-200'}`}>PT</button>
+             <button onClick={() => setLanguage('en')} className={`text-xs font-bold px-2 py-1 rounded transition-colors ${language === 'en' ? 'bg-[#F87A14] text-white' : 'text-slate-400 hover:bg-slate-200'}`}>EN</button>
+             <button onClick={() => setLanguage('es')} className={`text-xs font-bold px-2 py-1 rounded transition-colors ${language === 'es' ? 'bg-[#F87A14] text-white' : 'text-slate-400 hover:bg-slate-200'}`}>ES</button>
         </div>
 
         {/* Form Container */}
@@ -134,16 +140,16 @@ const AuthScreen: React.FC = () => {
             <div className="animate-fade-in">
               <div className="mb-6 text-center">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center justify-center gap-2">
-                  <KeyRound className="text-[#F87A14]" size={20} /> Recuperar Conta
+                  <KeyRound className="text-[#F87A14]" size={20} /> {t('auth_recovery_title')}
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Digite seu email para receber o link de redefinição de senha.
+                  {t('auth_recovery_desc')}
                 </p>
               </div>
 
               <form onSubmit={handleRecovery} className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Email Cadastrado</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{t('auth_email_label')}</label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-3.5 text-slate-400" size={18} />
                     <input
@@ -162,7 +168,7 @@ const AuthScreen: React.FC = () => {
                   disabled={loading}
                   className="w-full py-4 bg-gradient-to-r from-[#F87A14] to-orange-500 text-white rounded-xl font-bold shadow-lg shadow-orange-200 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
                 >
-                  {loading ? <Loader2 className="animate-spin" /> : "Enviar Link de Recuperação"}
+                  {loading ? <Loader2 className="animate-spin" /> : t('auth_recovery_btn')}
                 </button>
               </form>
 
@@ -170,7 +176,7 @@ const AuthScreen: React.FC = () => {
                 onClick={() => setIsRecovery(false)}
                 className="w-full mt-4 py-3 text-slate-500 hover:text-slate-800 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
               >
-                <ArrowLeft size={16} /> Voltar para o Login
+                <ArrowLeft size={16} /> {t('auth_back_login')}
               </button>
             </div>
           ) : (
@@ -184,7 +190,7 @@ const AuthScreen: React.FC = () => {
                     isLogin ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  Entrar
+                  {t('auth_login_tab')}
                 </button>
                 <button
                   onClick={() => toggleTab(false)}
@@ -192,13 +198,13 @@ const AuthScreen: React.FC = () => {
                     !isLogin ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  Criar Conta
+                  {t('auth_signup_tab')}
                 </button>
               </div>
 
               <form onSubmit={handleAuth} className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Email</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{t('auth_email_label')}</label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-3.5 text-slate-400" size={18} />
                     <input
@@ -213,7 +219,7 @@ const AuthScreen: React.FC = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Senha</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{t('auth_pass_label')}</label>
                   <div className="relative">
                     <Lock className="absolute left-4 top-3.5 text-slate-400" size={18} />
                     <input
@@ -238,7 +244,7 @@ const AuthScreen: React.FC = () => {
                         }}
                         className="text-xs font-semibold text-[#F87A14] hover:text-orange-700 transition-colors"
                       >
-                        Esqueci minha senha
+                        {t('auth_forgot_pass')}
                       </button>
                     </div>
                   )}
@@ -253,11 +259,11 @@ const AuthScreen: React.FC = () => {
                     <Loader2 className="animate-spin" />
                   ) : isLogin ? (
                     <>
-                      Entrar <ArrowRight size={18} />
+                      {t('auth_login_btn')} <ArrowRight size={18} />
                     </>
                   ) : (
                     <>
-                      <UserPlus size={18} /> Criar Conta Grátis
+                      <UserPlus size={18} /> {t('auth_signup_btn')}
                     </>
                   )}
                 </button>

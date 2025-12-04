@@ -1,6 +1,7 @@
 import React from 'react';
 import { Target, Brain, Trophy, MessageSquareText, Calendar, Heart, Rocket, Wind, AlertCircle } from 'lucide-react';
-import { QUOTES } from '../constants';
+import { QUOTES_BY_LANG } from '../constants';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface DashboardProps {
   onChangeTab: (tab: any) => void;
@@ -8,7 +9,9 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => {
-  const randomQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  const { t, language } = useLanguage();
+  const quotes = QUOTES_BY_LANG[language] || QUOTES_BY_LANG.pt;
+  const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 
   // Helper para abrir a ansiedade via tab (nova lógica unificada)
   const handleAnxietyClick = () => {
@@ -24,10 +27,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => 
         
         <div className="relative z-10 max-w-2xl">
           <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-3 md:mb-4 tracking-tight leading-tight">
-            Mente Abundante <br/> <span className="text-[#F87A14]">& Vitoriosa</span>
+            {t('hero_title')} <br/> <span className="text-[#F87A14]">{t('subtitle')}</span>
           </h1>
           <p className="text-slate-300 text-sm md:text-lg leading-relaxed max-w-lg md:max-w-none">
-            A verdadeira vitória começa antes da ação. Reprograme seus pensamentos e conquiste resultados extraordinários.
+            {t('hero_subtitle')}
           </p>
         </div>
       </div>
@@ -52,8 +55,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => 
           <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
             <MessageSquareText size={20} className="md:w-6 md:h-6" />
           </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">AI Coach</h3>
-          <p className="text-slate-600 text-xs md:text-sm">Mentoria personalizada para tirar dúvidas e manter o foco.</p>
+          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('card_coach_title')}</h3>
+          <p className="text-slate-600 text-xs md:text-sm">{t('card_coach_desc')}</p>
         </div>
 
         {/* 2. Reprogramação */}
@@ -64,8 +67,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => 
           <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
             <Brain size={20} className="md:w-6 md:h-6" />
           </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">Reprogramação</h3>
-          <p className="text-slate-600 text-xs md:text-sm">Transforme crenças limitantes em pensamentos de poder.</p>
+          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('card_reprogram_title')}</h3>
+          <p className="text-slate-600 text-xs md:text-sm">{t('card_reprogram_desc')}</p>
         </div>
 
         {/* 3. Planejador IA */}
@@ -76,11 +79,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => 
           <div className="w-10 h-10 md:w-12 md:h-12 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
             <Rocket size={20} className="md:w-6 md:h-6" />
           </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">Planejador IA</h3>
-          <p className="text-slate-600 text-xs md:text-sm">Defina metas e receba um plano de ação passo a passo.</p>
+          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('card_planner_title')}</h3>
+          <p className="text-slate-600 text-xs md:text-sm">{t('card_planner_desc')}</p>
         </div>
         
-        {/* 4. Ansiedade SOS (NOVO - Depois do Planejador) */}
+        {/* 4. Ansiedade SOS */}
         <div 
           onClick={handleAnxietyClick}
           className="bg-slate-100 p-5 md:p-6 rounded-2xl border border-slate-200 cursor-pointer hover:shadow-md hover:bg-slate-200 transition-all group"
@@ -89,9 +92,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => 
             <Wind size={20} className="md:w-6 md:h-6" />
           </div>
           <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2 flex items-center gap-2">
-            Ansiedade SOS <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded uppercase tracking-wider">Novo</span>
+            {t('card_anxiety_title')}
           </h3>
-          <p className="text-slate-600 text-xs md:text-sm">Áudio guiado imediato para recuperar seu equilíbrio.</p>
+          <p className="text-slate-600 text-xs md:text-sm">{t('card_anxiety_desc')}</p>
         </div>
 
         {/* 5. Plano 7 Dias */}
@@ -102,8 +105,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => 
           <div className="w-10 h-10 md:w-12 md:h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
             <Calendar size={20} className="md:w-6 md:h-6" />
           </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">Plano 7 Dias</h3>
-          <p className="text-slate-600 text-xs md:text-sm">Roteiro prático para destravar sua mente em uma semana.</p>
+          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('card_plan_title')}</h3>
+          <p className="text-slate-600 text-xs md:text-sm">{t('card_plan_desc')}</p>
         </div>
 
         {/* 6. Checklist Diário */}
@@ -114,8 +117,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => 
           <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
             <Trophy size={20} className="md:w-6 md:h-6" />
           </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">Checklist Diário</h3>
-          <p className="text-slate-600 text-xs md:text-sm">Hábitos de sucesso para construir consistência diária.</p>
+          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('card_checklist_title')}</h3>
+          <p className="text-slate-600 text-xs md:text-sm">{t('card_checklist_desc')}</p>
         </div>
 
         {/* 7. Visualização */}
@@ -126,8 +129,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => 
           <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
             <Target size={20} className="md:w-6 md:h-6" />
           </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">Visualização</h3>
-          <p className="text-slate-600 text-xs md:text-sm">Exercício guiado de 2 minutos para ancorar o sucesso.</p>
+          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('card_visual_title')}</h3>
+          <p className="text-slate-600 text-xs md:text-sm">{t('card_visual_desc')}</p>
         </div>
 
         {/* 8. Gratidão */}
@@ -138,8 +141,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => 
           <div className="w-10 h-10 md:w-12 md:h-12 bg-sky-100 text-sky-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
             <Heart size={20} className="md:w-6 md:h-6" />
           </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">Diário de Gratidão</h3>
-          <p className="text-slate-600 text-xs md:text-sm">Eleve sua vibração agradecendo pelo que você já tem.</p>
+          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('card_gratitude_title')}</h3>
+          <p className="text-slate-600 text-xs md:text-sm">{t('card_gratitude_desc')}</p>
         </div>
 
       </div>
