@@ -93,8 +93,8 @@ const AuthScreen: React.FC = () => {
         <div className="bg-slate-900 p-8 text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#F87A14] rounded-full blur-[60px] opacity-20 transform translate-x-1/2 -translate-y-1/2"></div>
           
-          {/* Language Switcher posicionado dentro do card */}
-          <div className="absolute top-4 right-4 z-20">
+          {/* Language Switcher posicionado dentro do card (Header) */}
+          <div className="absolute top-6 right-6 z-20">
              <LanguageSwitcher compact />
           </div>
 
