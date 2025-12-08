@@ -62,7 +62,14 @@ export const initOneSignal = async (userId?: string) => {
         }
       });
     });
-  } catch (error) {
+  } catch (error: any) {
+    // Filtra erros de domínio para evitar poluição no console em ambientes de desenvolvimento ou preview
+    // O erro "Can only be used on" ocorre quando a URL atual não bate com a configurada no OneSignal
+    const errorMsg = error?.message || error?.toString() || '';
+    if (errorMsg.includes('Can only be used on') || errorMsg.includes('origin')) {
+        console.warn("ℹ️ OneSignal: Notificações desativadas. Domínio atual não autorizado nas configurações do OneSignal (Normal em localhost/preview).");
+        return;
+    }
     console.error("Erro ao inicializar OneSignal:", error);
   }
 };
@@ -73,10 +80,16 @@ export const initOneSignal = async (userId?: string) => {
  */
 export const syncOneSignalIdToSupabase = async () => {
     if (!supabase) return;
+    const dbClient = supabase; // Captura a instância não-nula para uso no callback
 
     try {
         // Aguarda o SDK estar pronto
         await window.OneSignal.push(async () => {
+            // Verifica se o User module está disponível antes de acessar (evita erro se init falhar)
+            if (!window.OneSignal.User || !window.OneSignal.User.PushSubscription) {
+                return; 
+            }
+
             // Pega o ID de inscrição (Player ID)
             const subscriptionId = window.OneSignal.User.PushSubscription.id;
             
@@ -85,19 +98,23 @@ export const syncOneSignalIdToSupabase = async () => {
                 console.log("Sincronizando OneSignal ID:", subscriptionId);
                 
                 // Chama a função RPC que criamos no SQL
-                const { error } = await supabase.rpc('sync_onesignal_id', { 
+                const { error } = await dbClient.rpc('sync_onesignal_id', { 
                     p_player_id: subscriptionId 
                 });
 
                 if (error) {
-                    console.error("Erro ao salvar ID no Supabase:", error);
+                    // Ignora erros de função não encontrada caso o backend ainda não tenha sido atualizado
+                    if (!error.message?.includes('function not found')) {
+                       console.error("Erro ao salvar ID no Supabase:", error);
+                    }
                 } else {
                     console.log("OneSignal ID sincronizado com sucesso.");
                 }
             }
         });
     } catch (e) {
-        console.error("Falha na sincronização do OneSignal:", e);
+        // Silencia erros de sincronização para não atrapalhar a UX
+        console.warn("Falha na sincronização do OneSignal (Background):", e);
     }
 };
 
@@ -109,7 +126,9 @@ export const getOneSignalPlayerId = async (): Promise<string | null> => {
     try {
         let id = null;
         await window.OneSignal.push(() => {
-            id = window.OneSignal.User.PushSubscription.id;
+             if (window.OneSignal.User && window.OneSignal.User.PushSubscription) {
+                id = window.OneSignal.User.PushSubscription.id;
+             }
         });
         return id;
     } catch (e) {
@@ -126,5 +145,9 @@ export const requestNotificationPermission = async () => {
 
 export const isPushEnabled = async (): Promise<boolean> => {
     if (typeof window === 'undefined' || !window.OneSignal) return false;
-    return window.OneSignal.User.PushSubscription.optedIn;
+    try {
+       return window.OneSignal.User?.PushSubscription?.optedIn || false;
+    } catch(e) {
+       return false;
+    }
 };
