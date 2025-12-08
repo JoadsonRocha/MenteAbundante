@@ -86,17 +86,18 @@ const AuthScreen: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
-      {/* Language Switcher Flutuante Topo */}
-      <div className="absolute top-4 right-4 z-20">
-         <LanguageSwitcher />
-      </div>
-
+      
       <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/50 overflow-hidden border border-slate-100 animate-fade-in relative z-10">
         
         {/* Header */}
         <div className="bg-slate-900 p-8 text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#F87A14] rounded-full blur-[60px] opacity-20 transform translate-x-1/2 -translate-y-1/2"></div>
           
+          {/* Language Switcher posicionado dentro do card */}
+          <div className="absolute top-4 right-4 z-20">
+             <LanguageSwitcher compact />
+          </div>
+
           <div className="relative z-10 flex flex-col items-center">
             <div className="mb-4 bg-white/10 p-3 rounded-2xl backdrop-blur-sm shadow-inner border border-white/10">
               <Logo size={48} />

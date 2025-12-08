@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Target, Brain, Trophy, MessageSquareText, Calendar, Heart, Rocket, Wind, AlertCircle } from 'lucide-react';
 import { QUOTES } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -10,7 +10,12 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => {
   const { t } = useLanguage();
-  const randomQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  
+  // CORREÇÃO: Usa useMemo para garantir que a frase só seja escolhida UMA VEZ quando o componente monta,
+  // evitando que fique trocando a cada renderização ou atualização de estado.
+  const randomQuote = useMemo(() => {
+    return QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  }, []);
 
   const handleAnxietyClick = () => {
      onChangeTab('anxiety');
