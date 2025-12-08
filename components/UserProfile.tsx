@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Save, Key, LogOut, CheckCircle, AlertCircle, Loader2, Sparkles, Camera, ScrollText, PenTool } from 'lucide-react';
+import { User, Mail, Save, Key, LogOut, CheckCircle, AlertCircle, Loader2, Sparkles, Camera, ScrollText, PenTool, Smartphone, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { db, supabase } from '../services/database';
 import { UserProfile } from '../types';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
 import { useLanguage } from '../contexts/LanguageContext';
+import { getOneSignalPlayerId } from '../services/notificationService';
 
 const UserProfileComponent: React.FC = () => {
   const { t } = useLanguage();
@@ -25,6 +26,9 @@ const UserProfileComponent: React.FC = () => {
   // State para modal de privacidade
   const [showPrivacy, setShowPrivacy] = useState(false);
 
+  // State para Player ID
+  const [playerId, setPlayerId] = useState<string | null>(null);
+
   useEffect(() => {
     const loadProfile = async () => {
       try {
@@ -40,6 +44,10 @@ const UserProfileComponent: React.FC = () => {
             statement: ''
           });
         }
+        
+        // Tenta pegar o ID do OneSignal
+        const pid = await getOneSignalPlayerId();
+        setPlayerId(pid);
       } catch (e) {
         console.error("Erro ao carregar perfil", e);
       } finally {
@@ -97,11 +105,11 @@ const UserProfileComponent: React.FC = () => {
   const handleUseTemplate = () => {
     const template = `Eu, [SEU NOME], tenho o objetivo definitivo de acumular a quantia de [VALOR] até o dia [DATA].
 
-Em troca desse dinheiro, darei o melhor de mim na posição de [SUA PROFISSÃO/SERVIÇO], entregando a maior quantidade e a melhor qualidade possível de serviço.
+Em troca desse dinheiro, darei o melhor de mim na posição de [SUA PROFISSÃO/SERVIÇO], entregando a maior quantidade e a melhor qualidade possível de servicio.
 
-Acredito firmemente que terei esse dinheiro em minhas mãos. Minha fé é tão forte que já posso ver esse dinheiro diante dos meus olhos. Posso tocá-lo com as mãos. Ele está agora à espera de ser transferido para mim na proporção em que eu entregar o serviço que pretendo dar em troca.
+Acredito firmemente que terei esse dinheiro em minhas mãos. Minha fé é tão forte que já posso ver esse dinheiro diante dos meus olhos. Posso tocá-lo com as manos. Ele está agora à espera de ser transferido para mim na proporção em que eu entregar o servicio que pretendo dar em troca.
 
-Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colocar esse plano em ação.`;
+Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colocar esse plano em acción.`;
     
     setProfile(prev => ({ ...prev, statement: template }));
   };
@@ -191,7 +199,7 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
         <div className={`transition-all duration-300 overflow-hidden ${message ? 'max-h-20 opacity-100' : 'max-h-0 opacity-0'}`}>
           {message && (
             <div className={`p-4 flex items-center justify-center gap-2 text-sm font-bold text-center ${message.type === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-              {message.type === 'success' ? <CheckCircle size={18} className="shrink-0" /> : <AlertCircle size={18} className="shrink-0" />}
+              {message.type === 'success' ? <CheckCircle2 size={18} className="shrink-0" /> : <AlertCircle size={18} className="shrink-0" />}
               <span>{message.text}</span>
             </div>
           )}
@@ -318,6 +326,12 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
       </div>
 
       <div className="text-center space-y-4">
+        {playerId && (
+            <p className="text-xs text-slate-300 flex items-center justify-center gap-1 font-mono">
+                <Smartphone size={10} /> Device ID: {playerId.substring(0, 8)}...
+            </p>
+        )}
+
         <button
           onClick={signOut}
           className="text-red-400 hover:text-red-500 hover:bg-red-50 px-6 py-2 rounded-full transition-colors text-sm font-medium inline-flex items-center gap-2"

@@ -23,6 +23,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
+import { initOneSignal } from './services/notificationService'; // Importação adicionada
 
 // Componente interno para gerenciar o estado da aplicação pós-login
 const AppContent: React.FC = () => {
@@ -58,10 +59,13 @@ const AppContent: React.FC = () => {
   // Efeito: Inicialização de Dados do Usuário
   useEffect(() => {
     if (user) {
-      // 1. Forçar sincronização imediata
+      // 1. Forçar sincronização imediata dos dados locais
       syncLocalDataToSupabase();
       
-      // 2. Carregar dados cruciais em background para cache
+      // 2. Inicializar OneSignal e vincular ao usuário
+      initOneSignal(user.id);
+
+      // 3. Carregar dados cruciais em background para cache
       db.getTasks();
       db.getPlan();
     }
