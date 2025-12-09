@@ -548,7 +548,11 @@ const VisualizationTool: React.FC = () => {
                     (soundEnabled && !audioBufferCache.current[step]) ? 'bg-slate-600 opacity-50 cursor-not-allowed' : 'bg-white hover:bg-slate-100'
                   }`}
                 >
-                  {isActive ? <Pause size={28} md:size={32} fill="currentColor" /> : <Play size={28} md:size={32} fill="currentColor" className="ml-1" />}
+                  {isActive ? (
+                    <Pause className="w-7 h-7 md:w-8 md:h-8" fill="currentColor" />
+                  ) : (
+                    <Play className="w-7 h-7 md:w-8 md:h-8 ml-1" fill="currentColor" />
+                  )}
                 </button>
                 
                 <button 
@@ -556,7 +560,7 @@ const VisualizationTool: React.FC = () => {
                   className="w-12 h-12 md:w-14 md:h-14 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10"
                   title="Reiniciar"
                 >
-                  <RotateCcw size={20} md:size={22} />
+                  <RotateCcw className="w-5 h-5 md:w-[22px] md:h-[22px]" />
                 </button>
               </div>
               
