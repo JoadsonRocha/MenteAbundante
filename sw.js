@@ -1,27 +1,17 @@
-// Importa o Service Worker do OneSignal
-importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js');
-
-// Escuta mensagens logo na avaliaÇõÇœo inicial para evitar warnings do navegador
-self.addEventListener('message', (event) => {
-  if (event?.data?.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});
-
 // --- LÓGICA DO PWA (CACHE & OFFLINE) ---
-const CACHE_NAME = 'mindrise-v8-onesignal';
+const CACHE_NAME = 'mindrise-v5-store-ready';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/MindShift_192.png',
-  '/MindShift_512.png'
+  '/manifest.json'
+  // Removed missing images (MindShift_192.png, MindShift_512.png) to prevent installation errors
 ];
 
 // Instalação
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
+      // console.log('SW: Caching core assets');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
@@ -35,6 +25,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            // console.log('SW: Clearing old cache', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -48,14 +39,17 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Ignorar requisições externas e do OneSignal
-  if (!url.origin.startsWith(self.location.origin) || url.href.includes('onesignal.com')) {
+  // Ignorar requisições externas (API, Supabase, Google Fonts)
+  if (!url.origin.startsWith(self.location.origin)) {
     return;
   }
 
-  if (url.pathname.startsWith('/api/')) return;
+  // Ignorar API calls locais se houver
+  if (url.pathname.startsWith('/api/')) {
+    return;
+  }
 
-  // Estratégia para Navegação (HTML)
+  // Estratégia para Navegação (HTML): Network First, depois Cache, depois Fallback para index.html
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -63,6 +57,7 @@ self.addEventListener('fetch', (event) => {
           return caches.match(event.request)
             .then((cachedResponse) => {
               if (cachedResponse) return cachedResponse;
+              // CRUCIAL: Retorna index.html se não conseguir carregar a rota (SPA Navigation Fallback)
               return caches.match('/index.html');
             });
         })
@@ -70,11 +65,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Estratégia para Assets
+  // Estratégia para Assets (JS, CSS, Imagens): Cache First, depois Network
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       return cachedResponse || fetch(event.request).then((networkResponse) => {
         return caches.open(CACHE_NAME).then((cache) => {
+          // Cache dinâmico de novos arquivos
           cache.put(event.request, networkResponse.clone());
           return networkResponse;
         });

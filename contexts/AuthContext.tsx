@@ -22,7 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    // Verifica sessão atual
+    // Verifica sessão atual do Supabase
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -42,24 +42,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     if (supabase) {
       await supabase.auth.signOut();
-      
-      // Limpa dados locais para evitar vazamento de dados entre usuários
-      // CRITICO: Remover todos os dados sensíveis ao sair
-      localStorage.removeItem('mente_tasks');
-      localStorage.removeItem('mente_plan');
-      localStorage.removeItem('mente_beliefs');
-      localStorage.removeItem('mente_chat');
-      localStorage.removeItem('mente_profile');
-      localStorage.removeItem('mente_activity');
-      localStorage.removeItem('mente_last_checklist_date');
-      localStorage.removeItem('mente_gratitude');
-      // Adicionado: Limpa a aba salva para o próximo login começar limpo
-      localStorage.removeItem('mente_active_tab');
-      
-      // Força atualização do estado
-      setUser(null);
-      setSession(null);
     }
+    
+    // Limpeza completa de dados locais para garantir segurança ao sair
+    const keysToRemove = [
+      'mente_tasks',
+      'mente_plan',
+      'mente_beliefs',
+      'mente_chat',
+      'mente_profile',
+      'mente_activity',
+      'mente_last_checklist_date',
+      'mente_gratitude',
+      'mente_active_tab',
+      'mente_goal_plans',
+      'mente_support_tickets'
+    ];
+
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    
+    // Força atualização do estado
+    setUser(null);
+    setSession(null);
   };
 
   return (

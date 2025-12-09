@@ -3,8 +3,10 @@ import { Sparkles, ArrowDown, RefreshCw, Save, Trash2, Quote, BrainCircuit, Shie
 import { reframeBelief } from '../services/geminiService';
 import { BeliefEntry } from '../types';
 import { db } from '../services/database';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const BeliefReprogrammer: React.FC = () => {
+  const { t } = useLanguage();
   const [belief, setBelief] = useState('');
   const [result, setResult] = useState('');
   const [loadingAI, setLoadingAI] = useState(false);
@@ -67,10 +69,10 @@ const BeliefReprogrammer: React.FC = () => {
       <div className="text-center space-y-2">
         <h2 className="text-4xl font-extrabold text-[#F87A14] flex items-center justify-center gap-2">
           <BrainCircuit className="text-[#F87A14]" size={36} />
-          Reprogramação Mental
+          {t('reprogram.title')}
         </h2>
         <p className="text-slate-500 max-w-lg mx-auto">
-          Identifique bloqueios e use a IA para aplicar o método "Pensar, Sentir, Ressignificar".
+          {t('reprogram.subtitle')}
         </p>
       </div>
 
@@ -78,14 +80,14 @@ const BeliefReprogrammer: React.FC = () => {
       <div className="bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 overflow-hidden relative">
         <div className="bg-slate-900 p-6 text-white">
           <label className="text-sm font-medium text-amber-400 uppercase tracking-wider mb-2 block">
-            Identificar Bloqueio
+            {t('reprogram.label_block')}
           </label>
           <div className="relative">
             <Quote className="absolute top-2 left-2 text-slate-700 w-6 h-6 rotate-180" />
             <textarea
               value={belief}
               onChange={(e) => setBelief(e.target.value)}
-              placeholder="O que sua mente diz que você não consegue fazer? Ex: 'Não nasci para ser rico' ou 'Sou muito indisciplinado'..."
+              placeholder={t('reprogram.placeholder_block')}
               className="w-full bg-slate-800/50 text-white p-4 pl-10 rounded-xl border border-slate-700 focus:border-[#F87A14] focus:ring-1 focus:ring-orange-500 outline-none transition-all resize-none h-32 placeholder-slate-500"
             />
           </div>
@@ -97,7 +99,7 @@ const BeliefReprogrammer: React.FC = () => {
             <div className="animate-fade-in space-y-4">
               <div className="flex items-center gap-2 text-emerald-600 font-bold">
                 <Sparkles size={18} />
-                <span>Nova Programação Sugerida:</span>
+                <span>{t('reprogram.result_label')}</span>
               </div>
               <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-xl text-slate-800 leading-relaxed whitespace-pre-wrap">
                 {result}
@@ -107,13 +109,13 @@ const BeliefReprogrammer: React.FC = () => {
                   onClick={() => setResult('')}
                   className="px-4 py-2 text-slate-500 hover:bg-slate-50 rounded-lg transition-colors text-sm font-medium"
                 >
-                  Cancelar
+                  {t('reprogram.btn_cancel')}
                 </button>
                 <button 
                   onClick={saveEntry}
                   className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
                 >
-                  <Save size={20} /> Confirmar e Salvar no Diário
+                  <Save size={20} /> {t('reprogram.btn_save')}
                 </button>
               </div>
             </div>
@@ -133,7 +135,7 @@ const BeliefReprogrammer: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <RefreshCw /> Ressignificar Agora
+                  <RefreshCw /> {t('reprogram.btn_analyze')}
                 </>
               )}
             </button>
@@ -145,7 +147,7 @@ const BeliefReprogrammer: React.FC = () => {
       {savedEntries.length > 0 && (
         <div className="relative pt-8">
            <h3 className="text-xl font-bold text-slate-800 mb-8 pl-4 border-l-4 border-[#F87A14]">
-             Seu Histórico de Transformação
+             {t('reprogram.history_title')}
            </h3>
            
            {/* Timeline Line */}
@@ -217,7 +219,7 @@ const BeliefReprogrammer: React.FC = () => {
           <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
             <RefreshCw size={24} />
           </div>
-          <p className="text-slate-400">Nenhuma reprogramação registrada ainda.<br/>Comece acima.</p>
+          <p className="text-slate-400 whitespace-pre-line">{t('reprogram.empty_state')}</p>
         </div>
       )}
 

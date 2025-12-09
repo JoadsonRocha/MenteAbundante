@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Rocket, Clock, Loader2, Plus, CheckCircle2, Circle, Trash2, Calendar, Target, ChevronDown, ChevronUp, Cloud, Edit2, Check, X } from 'lucide-react';
+import { Rocket, Clock, Loader2, Plus, CheckCircle2, Circle, Trash2, Calendar, Target, ChevronDown, ChevronUp, Cloud, Edit2, Check, X, ArrowRightCircle } from 'lucide-react';
 import { db, generateUUID } from '../services/database';
 import { generateActionPlan } from '../services/geminiService';
 import { GoalPlan, GoalStep } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const SmartPlanner: React.FC = () => {
+  const { t } = useLanguage();
   const [plans, setPlans] = useState<GoalPlan[]>([]);
   const [goalInput, setGoalInput] = useState('');
   const [timeInput, setTimeInput] = useState('');
@@ -133,6 +135,29 @@ const SmartPlanner: React.FC = () => {
     }
   };
 
+  // --- INTEGRAÇÃO: Adicionar ao Checklist ---
+  const addToChecklist = async (text: string) => {
+     try {
+       const currentTasks = await db.getTasks();
+       // Limita tarefas para não poluir
+       if(currentTasks.length >= 20) {
+         alert("Seu checklist já está cheio. Complete algumas tarefas antes.");
+         return;
+       }
+       
+       const newTask = {
+          id: generateUUID(),
+          text: `[PLANO] ${text}`,
+          completed: false
+       };
+       
+       await db.saveTasks([...currentTasks, newTask]);
+       alert("Tarefa adicionada ao seu Checklist Diário com sucesso!");
+     } catch(e) {
+       console.error("Erro ao adicionar task", e);
+     }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -146,10 +171,10 @@ const SmartPlanner: React.FC = () => {
       
       <div className="text-center mb-8">
         <h2 className="text-4xl font-extrabold text-[#F87A14] flex items-center justify-center gap-2">
-           <Rocket size={36} /> Planejador IA
+           <Rocket size={36} /> {t('planner.title')}
         </h2>
         <p className="text-slate-500 max-w-lg mx-auto">
-          Defina um objetivo e um prazo. Nossa IA criará um roteiro passo a passo para você chegar lá.
+          {t('planner.subtitle')}
         </p>
       </div>
 
@@ -158,28 +183,28 @@ const SmartPlanner: React.FC = () => {
         <form onSubmit={handleGenerate} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
              <div className="md:col-span-2 space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Seu Objetivo</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{t('planner.label_goal')}</label>
                 <div className="relative">
                    <Target className="absolute left-4 top-3.5 text-slate-400" size={18} />
                    <input 
                      type="text" 
                      value={goalInput}
                      onChange={(e) => setGoalInput(e.target.value)}
-                     placeholder="Ex: Aprender inglês básico, Lançar um e-book..."
+                     placeholder={t('planner.placeholder_goal')}
                      className="w-full pl-11 p-3 rounded-xl border border-slate-200 outline-none focus:border-[#F87A14] focus:ring-1 focus:ring-orange-500 transition-all"
                    />
                 </div>
              </div>
              
              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Prazo</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{t('planner.label_time')}</label>
                 <div className="relative">
                    <Clock className="absolute left-4 top-3.5 text-slate-400" size={18} />
                    <input 
                      type="text" 
                      value={timeInput}
                      onChange={(e) => setTimeInput(e.target.value)}
-                     placeholder="Ex: 30 dias, 3 meses..."
+                     placeholder={t('planner.placeholder_time')}
                      className="w-full pl-11 p-3 rounded-xl border border-slate-200 outline-none focus:border-[#F87A14] focus:ring-1 focus:ring-orange-500 transition-all"
                    />
                 </div>
@@ -195,7 +220,7 @@ const SmartPlanner: React.FC = () => {
                 : 'bg-gradient-to-r from-[#F87A14] to-orange-500 text-white shadow-lg shadow-orange-200 hover:-translate-y-0.5'
             }`}
           >
-            {creating ? <Loader2 className="animate-spin" /> : <><Plus size={20} /> Gerar Plano de Ação</>}
+            {creating ? <Loader2 className="animate-spin" /> : <><Plus size={20} /> {t('planner.btn_generate')}</>}
           </button>
         </form>
       </div>
@@ -205,7 +230,7 @@ const SmartPlanner: React.FC = () => {
          {plans.length === 0 && !creating && (
            <div className="text-center py-12 opacity-50">
               <Calendar size={48} className="mx-auto text-slate-200 mb-4" />
-              <p className="text-slate-400">Nenhum plano criado ainda.<br/>Comece agora e transforme metas em realidade.</p>
+              <p className="text-slate-400 whitespace-pre-line">{t('planner.empty_state')}</p>
            </div>
          )}
 
@@ -299,13 +324,22 @@ const SmartPlanner: React.FC = () => {
                                             </span>
                                          </div>
                                          
-                                         <button 
-                                           onClick={(e) => { e.stopPropagation(); startEditingStep(step); }}
-                                           className="p-1.5 text-slate-300 hover:text-[#F87A14] hover:bg-orange-50 rounded-lg transition-all"
-                                           title="Editar Tarefa"
-                                         >
-                                           <Edit2 size={16} />
-                                         </button>
+                                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button 
+                                               onClick={(e) => { e.stopPropagation(); addToChecklist(step.text); }}
+                                               className="p-1.5 text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-all"
+                                               title="Adicionar ao Checklist Diário"
+                                            >
+                                               <ArrowRightCircle size={16} />
+                                            </button>
+                                            <button 
+                                              onClick={(e) => { e.stopPropagation(); startEditingStep(step); }}
+                                              className="p-1.5 text-slate-300 hover:text-[#F87A14] hover:bg-orange-50 rounded-lg transition-all"
+                                              title="Editar Tarefa"
+                                            >
+                                              <Edit2 size={16} />
+                                            </button>
+                                         </div>
                                       </div>
                                   )}
                                </div>

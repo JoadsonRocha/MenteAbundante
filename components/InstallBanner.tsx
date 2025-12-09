@@ -26,7 +26,7 @@ const InstallBanner: React.FC<InstallBannerProps> = ({ installAction, deferredPr
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 p-4 z-50 animate-slide-up pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="fixed bottom-0 left-0 right-0 p-4 z-50 animate-slide-up">
       <div className="max-w-md mx-auto bg-slate-900 text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between border border-slate-700">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">

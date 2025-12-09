@@ -3,8 +3,10 @@ import { CheckCircle2, Circle, Loader2, Calendar, Edit3, X, MessageSquareQuote, 
 import { DailyTask } from '../types';
 import { db } from '../services/database';
 import { analyzeDailyHabit } from '../services/geminiService';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const DailyChecklist: React.FC = () => {
+  const { t } = useLanguage();
   const [tasks, setTasks] = useState<DailyTask[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -127,13 +129,13 @@ const DailyChecklist: React.FC = () => {
       
       {/* Header Minimalista */}
       <div className="text-center md:text-left mb-8">
-        <h2 className="text-3xl font-extrabold text-[#F87A14]">Ritual Diário</h2>
+        <h2 className="text-3xl font-extrabold text-[#F87A14]">{t('checklist.title')}</h2>
         <div className="flex items-center justify-center md:justify-start gap-2 text-slate-500 mt-2">
            <Calendar size={16} className="text-[#F87A14]" />
            <span className="text-sm capitalize font-medium">{dateString}</span>
         </div>
         <p className="text-slate-400 text-sm mt-2 max-w-lg">
-          Não apenas marque tarefas. Sinta cada pequena vitória e receba insights.
+          {t('checklist.subtitle')}
         </p>
       </div>
 
@@ -196,7 +198,7 @@ const DailyChecklist: React.FC = () => {
         <div className="mt-12 pt-8 border-t border-slate-100 animate-in slide-in-from-bottom-4 duration-500">
            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
              <Edit3 size={18} className="text-[#F87A14]" />
-             Diário de Bordo
+             {t('checklist.summary_title')}
            </h3>
            
            <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm space-y-6">

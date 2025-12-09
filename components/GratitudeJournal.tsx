@@ -3,8 +3,10 @@ import { Heart, Send, Sparkles, Calendar, BookOpen, Loader2 } from 'lucide-react
 import { db, generateUUID } from '../services/database';
 import { generateGratitudeAffirmation } from '../services/geminiService';
 import { GratitudeEntry } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const GratitudeJournal: React.FC = () => {
+  const { t } = useLanguage();
   const [entryText, setEntryText] = useState('');
   const [history, setHistory] = useState<GratitudeEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -71,17 +73,17 @@ const GratitudeJournal: React.FC = () => {
       <div className="text-center space-y-2">
         <h2 className="text-4xl font-extrabold text-slate-800 flex items-center justify-center gap-2">
           <Heart className="text-[#F87A14] fill-[#F87A14]" size={36} />
-          Diário da Gratidão
+          {t('gratitude.title')}
         </h2>
         <p className="text-slate-500 max-w-lg mx-auto">
-          Agradecer pelo que você já tem é a maneira mais rápida de atrair o que você deseja.
+          {t('gratitude.subtitle')}
         </p>
       </div>
 
       {/* Input Area - Tons de Ouro/Laranja Suave e Slate */}
       <div className="bg-gradient-to-br from-orange-50 to-white p-6 md:p-8 rounded-3xl border border-orange-100 shadow-xl shadow-orange-100/50">
         <label className="block text-sm font-bold text-orange-700 uppercase tracking-wider mb-4">
-          Pelo que você é grato hoje?
+          {t('gratitude.label_input')}
         </label>
         
         <div className="relative">
@@ -89,7 +91,7 @@ const GratitudeJournal: React.FC = () => {
             value={entryText}
             onChange={(e) => setEntryText(e.target.value)}
             disabled={analyzing}
-            placeholder="Ex: Sou grato pela conversa inspiradora que tive hoje, pelo café quente e pela minha saúde..."
+            placeholder={t('gratitude.placeholder_input')}
             className="w-full h-32 p-4 rounded-2xl border border-orange-200 focus:border-[#F87A14] focus:ring-4 focus:ring-orange-100 transition-all resize-none text-slate-700 placeholder:text-orange-300/70 bg-white outline-none text-lg"
           />
           
@@ -104,9 +106,9 @@ const GratitudeJournal: React.FC = () => {
                }`}
              >
                {analyzing ? (
-                 <><Loader2 size={18} className="animate-spin" /> Gerando Energia...</>
+                 <><Loader2 size={18} className="animate-spin" /> ...</>
                ) : (
-                 <><Send size={18} /> Agradecer</>
+                 <><Send size={18} /> {t('gratitude.btn_submit')}</>
                )}
              </button>
           </div>
@@ -124,7 +126,7 @@ const GratitudeJournal: React.FC = () => {
         <div className="space-y-6">
           <h3 className="text-lg font-bold text-slate-700 flex items-center gap-2 pl-2">
             <BookOpen size={20} className="text-slate-400" />
-            Seu Histórico de Bênçãos
+            {t('gratitude.history_title')}
           </h3>
 
           <div className="grid gap-6">
@@ -165,7 +167,7 @@ const GratitudeJournal: React.FC = () => {
       {history.length === 0 && !loading && (
         <div className="text-center py-12 opacity-50">
            <Heart size={48} className="mx-auto text-slate-200 mb-4" />
-           <p className="text-slate-400">Nenhum agradecimento registrado ainda.<br/>Comece hoje e veja a mágica acontecer.</p>
+           <p className="text-slate-400 whitespace-pre-line">{t('gratitude.empty_state')}</p>
         </div>
       )}
 

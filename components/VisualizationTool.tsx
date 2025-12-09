@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Eye, Anchor, Volume2, VolumeX, Loader2, DownloadCloud, CheckCircle2, ScrollText, Headphones, RefreshCw } from 'lucide-react';
+import { Play, Pause, RotateCcw, Eye, Anchor, Volume2, VolumeX, Loader2, DownloadCloud, CheckCircle2, ScrollText, Headphones, RefreshCw, Heart } from 'lucide-react';
 import { generateGuidedAudio } from '../services/geminiService';
 import { db } from '../services/database';
 
@@ -88,6 +88,9 @@ const VisualizationTool: React.FC = () => {
   const [loadingStep, setLoadingStep] = useState<number | null>(null);
   const [downloadProgress, setDownloadProgress] = useState(0);
 
+  // --- INTEGRAÇÃO GRATIDÃO ---
+  const [gratitudeFocus, setGratitudeFocus] = useState<string | null>(null);
+
   // --- STATES DECLARAÇÃO ---
   const [statementText, setStatementText] = useState<string>('');
   const [isStatementPlaying, setIsStatementPlaying] = useState(false);
@@ -109,19 +112,25 @@ const VisualizationTool: React.FC = () => {
     { time: 0, text: "Pode abrir os olhos. Leve essa energia de confiança absoluta para o seu dia.", color: "text-slate-700" }
   ];
 
-  // Carregar Declaração do Banco
+  // Carregar Declaração do Banco e Gratidão
   useEffect(() => {
-    const fetchStatement = async () => {
+    const fetchData = async () => {
       const profile = await db.getProfile();
       if (profile && profile.statement) {
         setStatementText(profile.statement);
       }
+      
+      // Busca última gratidão
+      const gratitudeHistory = await db.getGratitudeHistory();
+      if(gratitudeHistory && gratitudeHistory.length > 0) {
+        setGratitudeFocus(gratitudeHistory[0].text);
+      }
     };
-    fetchStatement();
+    fetchData();
 
     // Listener para atualização de perfil em tempo real
     const handleProfileUpdate = () => {
-       fetchStatement();
+       fetchData();
     };
     window.addEventListener('profile-updated', handleProfileUpdate);
 
@@ -455,37 +464,50 @@ const VisualizationTool: React.FC = () => {
   const allDownloaded = downloadProgress >= steps.length;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-fade-in pb-8">
       
       {/* Mode Switcher */}
       <div className="bg-white p-1 rounded-2xl border border-slate-200 shadow-sm flex max-w-md mx-auto w-full">
          <button 
            onClick={() => { setMode('guided'); stopAudio(); }}
-           className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${mode === 'guided' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
+           className={`flex-1 py-3 px-4 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all ${mode === 'guided' ? 'bg-slate-800 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
          >
            <Eye size={16} /> Guiada (2 min)
          </button>
          <button 
            onClick={() => { setMode('statement'); stopAudio(); }}
-           className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${mode === 'statement' ? 'bg-[#F87A14] text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
+           className={`flex-1 py-3 px-4 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all ${mode === 'statement' ? 'bg-[#F87A14] text-white shadow-md' : 'text-slate-500 hover:text-slate-800'}`}
          >
            <ScrollText size={16} /> Declaração
          </button>
       </div>
 
       {mode === 'guided' ? (
-        // --- VISUALIZAÇÃO GUIADA (CÓDIGO EXISTENTE) ---
-        <div className="flex flex-col items-center justify-center h-full min-h-[500px] bg-slate-900 rounded-3xl relative overflow-hidden text-white p-8 shadow-2xl transition-all animate-fade-in">
+        // --- VISUALIZAÇÃO GUIADA ---
+        // Altura ajustada: min-h menor em mobile (400px), maior em desktop (500px)
+        <div className="flex flex-col items-center justify-center h-full min-h-[400px] md:min-h-[500px] bg-slate-900 rounded-3xl relative overflow-hidden text-white p-5 md:p-8 shadow-2xl transition-all animate-fade-in">
           {/* Background Decor */}
           <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
             <div className="absolute top-[-20%] left-[-20%] w-[50%] h-[50%] bg-emerald-500 rounded-full blur-[120px]"></div>
             <div className="absolute bottom-[-20%] right-[-20%] w-[50%] h-[50%] bg-amber-500 rounded-full blur-[120px]"></div>
           </div>
 
-          <div className="z-10 text-center max-w-lg w-full">
-            <div className="mb-8 flex justify-between items-center w-full">
+          <div className="z-10 text-center max-w-lg w-full flex flex-col items-center">
+            
+            {/* GRATITUDE OVERLAY (INTEGRAÇÃO) */}
+            {!isActive && gratitudeFocus && (
+               <div className="mb-6 animate-in fade-in slide-in-from-top-4 bg-white/10 border border-white/20 p-3 rounded-xl max-w-sm">
+                  <div className="flex items-center justify-center gap-2 text-amber-300 text-xs font-bold uppercase tracking-wider mb-1">
+                     <Heart size={12} fill="currentColor" /> Sua gratidão de hoje
+                  </div>
+                  <p className="text-white text-sm italic">"{gratitudeFocus}"</p>
+               </div>
+            )}
+
+            {/* Top Bar */}
+            <div className="mb-6 md:mb-8 flex justify-between items-center w-full">
               <div className="w-10"></div> 
-              <span className="bg-white/10 px-4 py-1 rounded-full text-sm font-medium tracking-wider uppercase text-emerald-300 border border-white/5">
+              <span className="bg-white/10 px-3 py-1 md:px-4 rounded-full text-xs md:text-sm font-medium tracking-wider uppercase text-emerald-300 border border-white/5">
                 Visualização Guiada
               </span>
               <button 
@@ -494,21 +516,23 @@ const VisualizationTool: React.FC = () => {
                 title={soundEnabled ? "Desativar Voz Humana" : "Ativar Voz Guia (IA)"}
               >
                 {loadingStep !== null && soundEnabled ? (
-                  <Loader2 size={20} className="animate-spin text-amber-400" />
+                  <Loader2 size={18} className="animate-spin text-amber-400" />
                 ) : soundEnabled ? (
-                  <Volume2 size={20} />
+                  <Volume2 size={18} />
                 ) : (
-                  <VolumeX size={20} />
+                  <VolumeX size={18} />
                 )}
               </button>
             </div>
 
-            <div className="text-7xl font-light font-mono mb-8 tracking-tighter tabular-nums text-slate-100">
+            {/* Timer - Menor em mobile */}
+            <div className="text-6xl md:text-7xl font-light font-mono mb-6 md:mb-8 tracking-tighter tabular-nums text-slate-100">
               {formatTime(timeLeft)}
             </div>
 
-            <div className="h-40 flex items-center justify-center mb-8 px-4">
-              <p className={`text-xl md:text-2xl font-medium transition-all duration-700 leading-relaxed text-center ${isActive ? 'opacity-100 translate-y-0' : 'opacity-70'}`}>
+            {/* Step Text - Menor e mais compacto em mobile */}
+            <div className="h-32 md:h-40 flex items-center justify-center mb-6 px-2 md:px-4 w-full">
+              <p className={`text-lg md:text-2xl font-medium transition-all duration-700 leading-relaxed text-center ${isActive ? 'opacity-100 translate-y-0' : 'opacity-70'}`}>
                 {steps[step].text}
               </p>
             </div>
@@ -519,20 +543,20 @@ const VisualizationTool: React.FC = () => {
                   onClick={toggleTimer}
                   // Bloqueia play se áudio estiver ativado mas ainda não baixou o passo atual
                   disabled={soundEnabled && !audioBufferCache.current[step] && isActive === false}
-                  className={`w-20 h-20 text-slate-900 rounded-full flex items-center justify-center hover:scale-105 transition-all shadow-lg shadow-white/10 ${
+                  className={`w-16 h-16 md:w-20 md:h-20 text-slate-900 rounded-full flex items-center justify-center hover:scale-105 transition-all shadow-lg shadow-white/10 ${
                     isActive ? 'bg-amber-400 hover:bg-amber-300' : 
                     (soundEnabled && !audioBufferCache.current[step]) ? 'bg-slate-600 opacity-50 cursor-not-allowed' : 'bg-white hover:bg-slate-100'
                   }`}
                 >
-                  {isActive ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
+                  {isActive ? <Pause size={28} md:size={32} fill="currentColor" /> : <Play size={28} md:size={32} fill="currentColor" className="ml-1" />}
                 </button>
                 
                 <button 
                   onClick={resetTimer}
-                  className="w-14 h-14 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10"
+                  className="w-12 h-12 md:w-14 md:h-14 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10"
                   title="Reiniciar"
                 >
-                  <RotateCcw size={22} />
+                  <RotateCcw size={20} md:size={22} />
                 </button>
               </div>
               
@@ -544,58 +568,59 @@ const VisualizationTool: React.FC = () => {
           </div>
 
           {/* Info footer with Download Progress */}
-          <div className="absolute bottom-6 flex gap-6 text-xs text-slate-400/80 w-full justify-center px-4">
-            <div className="flex items-center gap-2">
-              <Eye size={16} className="text-emerald-400" /> <span>Visualize</span>
+          <div className="absolute bottom-4 md:bottom-6 flex gap-4 md:gap-6 text-[10px] md:text-xs text-slate-400/80 w-full justify-center px-4">
+            <div className="flex items-center gap-1 md:gap-2">
+              <Eye size={14} className="text-emerald-400" /> <span>Visualize</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Anchor size={16} className="text-amber-400" /> <span>Ancore</span>
+            <div className="flex items-center gap-1 md:gap-2">
+              <Anchor size={14} className="text-amber-400" /> <span>Ancore</span>
             </div>
             
             {/* Indicador de Download */}
             {!allDownloaded && (
                <div className="flex items-center gap-2 bg-slate-800/50 px-2 py-1 rounded-full border border-slate-700">
-                 <DownloadCloud size={12} className="text-blue-400 animate-bounce" /> 
+                 <DownloadCloud size={10} className="text-blue-400 animate-bounce" /> 
                  <span>Baixando: {downloadProgress}/{steps.length}</span>
                </div>
             )}
             {allDownloaded && (
                <div className="flex items-center gap-2 text-emerald-500/50">
-                 <CheckCircle2 size={12} /> <span>Áudio Pronto</span>
+                 <CheckCircle2 size={10} /> <span className="hidden sm:inline">Áudio Pronto</span>
                </div>
             )}
           </div>
         </div>
       ) : (
-        // --- VISUALIZAÇÃO DE DECLARAÇÃO (NOVO) ---
-        <div className="flex flex-col h-full min-h-[500px] bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xl animate-fade-in relative">
-          <div className="bg-gradient-to-r from-amber-500 to-[#F87A14] p-6 text-white text-center shrink-0">
-             <h3 className="text-xl font-bold uppercase tracking-wider mb-1">Seu Desejo Ardente</h3>
-             <p className="text-amber-100 text-sm">Leia em voz alta ou ouça para reforçar sua fé.</p>
+        // --- VISUALIZAÇÃO DE DECLARAÇÃO ---
+        // Usamos h-full com altura definida para permitir scroll interno correto
+        <div className="flex flex-col h-[450px] md:h-[550px] bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xl animate-fade-in relative">
+          <div className="bg-gradient-to-r from-amber-500 to-[#F87A14] p-4 md:p-6 text-white text-center shrink-0">
+             <h3 className="text-lg md:text-xl font-bold uppercase tracking-wider mb-1">Seu Desejo Ardente</h3>
+             <p className="text-amber-100 text-xs md:text-sm">Leia em voz alta ou ouça para reforçar sua fé.</p>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] bg-amber-50/50">
+          <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] bg-amber-50/50">
             {statementText ? (
-              <div className="text-lg md:text-xl text-slate-800 font-serif leading-loose whitespace-pre-wrap text-center italic max-w-2xl mx-auto">
+              <div className="text-base md:text-xl text-slate-800 font-serif leading-loose whitespace-pre-wrap text-center italic max-w-2xl mx-auto">
                 "{statementText}"
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-slate-400 text-center gap-4">
-                <ScrollText size={48} className="text-slate-200" />
-                <p>Você ainda não definiu sua Declaração de Desejo.</p>
-                <a href="#" onClick={(e) => { e.preventDefault(); /* Navegar seria ideal, mas alerta serve por hora */ alert("Vá até a aba 'Perfil' no menu para configurar sua declaração."); }} className="text-[#F87A14] font-bold hover:underline">
+                <ScrollText size={40} className="text-slate-200" />
+                <p className="text-sm">Você ainda não definiu sua Declaração de Desejo.</p>
+                <a href="#" onClick={(e) => { e.preventDefault(); alert("Vá até a aba 'Perfil' no menu para configurar sua declaração."); }} className="text-[#F87A14] font-bold hover:underline text-sm">
                   Ir para o Perfil configurar
                 </a>
               </div>
             )}
           </div>
 
-          {/* Player Bar */}
-          <div className="p-4 bg-white border-t border-slate-100 shrink-0 flex items-center justify-center gap-4">
+          {/* Player Bar - Sticky Bottom */}
+          <div className="p-3 md:p-4 bg-white border-t border-slate-100 shrink-0 flex items-center justify-center gap-3">
              <button
                onClick={() => playStatementAudio(false)}
                disabled={!statementText || statementLoading}
-               className={`flex items-center gap-3 px-8 py-4 rounded-full font-bold text-lg shadow-lg transition-all ${
+               className={`flex items-center gap-2 md:gap-3 px-6 py-3 md:px-8 md:py-4 rounded-full font-bold text-sm md:text-lg shadow-lg transition-all w-full md:w-auto justify-center ${
                   isStatementPlaying 
                     ? 'bg-red-50 text-red-500 hover:bg-red-100' 
                     : (!statementText ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-slate-800 hover:scale-105')
@@ -603,27 +628,27 @@ const VisualizationTool: React.FC = () => {
              >
                {statementLoading ? (
                  <>
-                   <Loader2 size={24} className="animate-spin" /> Gerando Áudio...
+                   <Loader2 size={20} className="animate-spin" /> Gerando Áudio...
                  </>
                ) : isStatementPlaying ? (
                  <>
-                   <Pause size={24} fill="currentColor" /> Pausar Leitura
+                   <Pause size={20} fill="currentColor" /> Pausar
                  </>
                ) : (
                  <>
-                   <Headphones size={24} /> Ouvir Declaração
+                   <Headphones size={20} /> Ouvir Declaração
                  </>
                )}
              </button>
              
-             {/* Force Regenerate Button (se o usuário quiser atualizar explicitamente) */}
+             {/* Force Regenerate Button */}
              <button
                 onClick={() => playStatementAudio(true)}
                 disabled={!statementText || statementLoading || isStatementPlaying}
-                className="p-4 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
+                className="p-3 md:p-4 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors"
                 title="Regerar Áudio (Se o texto mudou)"
              >
-                <RefreshCw size={20} className={statementLoading ? "animate-spin" : ""} />
+                <RefreshCw size={18} className={statementLoading ? "animate-spin" : ""} />
              </button>
           </div>
         </div>

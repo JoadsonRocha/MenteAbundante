@@ -2,14 +2,14 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>MindRise</title>
     
     <!-- PWA Configuration -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#ffffff">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#EA580C">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MindRise">
     <meta name="description" content="Sua ferramenta diária para reprogramação mental e abundância.">
     
@@ -19,40 +19,19 @@
     <!-- Apple Touch Icon (iOS Home Screen - Using PNG for better quality) -->
     <link rel="apple-touch-icon" href="/MindShift_192.png">
 
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-      :root {
-        --sat: env(safe-area-inset-top);
-        --sab: env(safe-area-inset-bottom);
-        --sal: env(safe-area-inset-left);
-        --sar: env(safe-area-inset-right);
-      }
-
       body {
         font-family: 'Inter', sans-serif;
         background-color: #f8fafc;
-        /* UX Nativa: Impede seleção de texto na UI e efeito elástico */
-        -webkit-user-select: none;
-        user-select: none;
-        overscroll-behavior-y: none;
-        /* Remove highlight cinza ao tocar em botões mobile */
-        -webkit-tap-highlight-color: transparent;
-        -webkit-touch-callout: none;
       }
-
-      /* Reativa seleção apenas onde necessário */
-      input, textarea, [contenteditable="true"], .selectable-text {
-        -webkit-user-select: text;
-        user-select: text;
-      }
-
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+        width: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: transparent; 
+        background: #f1f1f1; 
       }
       ::-webkit-scrollbar-thumb {
         background: #cbd5e1; 
@@ -73,12 +52,12 @@
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "recharts": "https://aistudiocdn.com/recharts@^2.15.0",
-    "react-onesignal": "https://aistudiocdn.com/react-onesignal@^3.4.0"
+    "recharts": "https://aistudiocdn.com/recharts@^2.15.0"
   }
 }
 </script>
 
+<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>

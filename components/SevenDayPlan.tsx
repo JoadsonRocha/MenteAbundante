@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Unlock, CheckCircle, Loader2, Save, Edit2, Sparkles, RefreshCw, Trophy, Clock } from 'lucide-react';
-import { DayPlan } from '../types';
+import { Lock, Unlock, CheckCircle, Loader2, Save, Edit2, Sparkles, RefreshCw, Trophy, Clock, ArrowRightCircle } from 'lucide-react';
+import { DayPlan, Tab } from '../types';
 import { db } from '../services/database';
 import { analyzePlanAction } from '../services/geminiService';
 import { SEVEN_DAY_PLAN } from '../constants';
 
-const SevenDayPlan: React.FC = () => {
+interface SevenDayPlanProps {
+  onNavigate: (tab: Tab) => void;
+}
+
+const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
   const [plan, setPlan] = useState<DayPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingDay, setProcessingDay] = useState<number | null>(null); // Estado de loading da IA
@@ -195,6 +199,16 @@ const SevenDayPlan: React.FC = () => {
                     <p className="text-slate-600 text-sm leading-relaxed mb-4">
                       {day.description}
                     </p>
+                    
+                    {/* INTEGRAÇÃO: Atalho para Reprogramação no Dia 1 */}
+                    {day.day === 1 && !day.completed && !isLocked && (
+                      <button 
+                        onClick={() => onNavigate('reprogram')}
+                        className="mb-4 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg hover:bg-emerald-100 transition-colors flex items-center gap-2 inline-flex"
+                      >
+                         <ArrowRightCircle size={14} /> Usar Ferramenta de Reprogramação
+                      </button>
+                    )}
 
                     {/* Aviso de Espera (Wait Mode) */}
                     {waitMode && (

@@ -45,10 +45,28 @@ const AICoach: React.FC = () => {
     // Salva msg do usuário no banco (sem await para não travar UI)
     db.saveChatMessage(userMsg);
 
+    // --- INTEGRAÇÃO: Coleta Contexto do Usuário ---
+    let userContext = "";
+    try {
+      const [profile, beliefs] = await Promise.all([
+        db.getProfile(),
+        db.getBeliefs()
+      ]);
+      
+      const goal = profile?.statement || profile?.mantra || "Não definido";
+      const recentBeliefs = beliefs.slice(0, 3).map(b => b.limiting).join("; ");
+      
+      userContext = `Objetivo/Mantra Principal: "${goal}".\nCrenças Limitantes Recentes identificadas: ${recentBeliefs}.`;
+    } catch (e) {
+      console.log("Erro ao carregar contexto", e);
+    }
+    // ----------------------------------------------
+
     // Contexto das últimas 10 mensagens
     const contextHistory = messages.slice(-10).map(m => `${m.role === 'user' ? 'Usuário' : 'Mentor'}: ${m.text}`);
 
-    const responseText = await chatWithCoach(contextHistory, userText);
+    // Passa o userContext para a função de serviço
+    const responseText = await chatWithCoach(contextHistory, userText, userContext);
     const modelMsg: ChatMessage = { role: 'model', text: responseText };
 
     setMessages(prev => [...prev, modelMsg]);
@@ -63,6 +81,22 @@ const AICoach: React.FC = () => {
       await db.clearChat();
       setMessages([{ role: 'model', text: 'Memória limpa. Vamos recomeçar! Qual é o seu foco hoje?' }]);
     }
+  };
+
+  // Função auxiliar para renderizar Markdown simples (Negrito)
+  const renderMessage = (text: string) => {
+    // Primeiro divide por negrito (**texto**)
+    const boldParts = text.split(/(\*\*.*?\*\*)/g);
+    
+    return boldParts.map((part, index) => {
+      // Se for negrito
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+        return <strong key={index} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
+      }
+      
+      // Retorna o texto normal
+      return <span key={index}>{part}</span>;
+    });
   };
 
   return (
@@ -122,7 +156,9 @@ const AICoach: React.FC = () => {
                     ? 'bg-gradient-to-br from-[#F87A14] to-orange-600 text-white rounded-2xl rounded-tr-none shadow-orange-200' 
                     : 'bg-white text-slate-700 border border-slate-100 rounded-2xl rounded-tl-none shadow-slate-200'
                 }`}>
-                  <p className="whitespace-pre-wrap">{msg.text}</p>
+                  <p className="whitespace-pre-wrap">
+                    {isUser ? msg.text : renderMessage(msg.text)}
+                  </p>
                 </div>
               </div>
             </div>

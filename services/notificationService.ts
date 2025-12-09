@@ -1,35 +1,37 @@
-import OneSignal from 'react-onesignal';
+import { supabase } from './database';
 
-// Solicita permissão usando a UI nativa do OneSignal ou do Browser
-export const requestNotificationPermission = async (): Promise<boolean> => {
+// Serviço simplificado apenas para permissão nativa, se necessário no futuro
+// OneSignal removido completamente conforme solicitado.
+
+export const requestNotificationPermission = async () => {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+      return false;
+  }
+  
   try {
-    // No OneSignal, podemos chamar o Slidedown de permissão
-    await OneSignal.Slidedown.promptPush();
-    // Ou usar a API nativa
-    await OneSignal.User.PushSubscription.optIn();
-    
-    // Retorna o status atual da inscrição (converte para booleano para garantir tipo correto)
-    return Boolean(OneSignal.User.PushSubscription.optedIn);
-  } catch (error) {
-    console.error("Erro ao solicitar permissão OneSignal:", error);
-    return false;
+     const permission = await Notification.requestPermission();
+     return permission === 'granted';
+  } catch(e) {
+     console.error("Erro ao pedir permissão de notificação:", e);
+     return false;
   }
 };
 
-export const isPushEnabled = async (): Promise<boolean> => {
-    try {
-        // Verifica se o usuário está optado
-        return OneSignal.User.PushSubscription.optedIn || false;
-    } catch (e) {
-        return false;
-    }
+// Funções dummy para manter compatibilidade caso algum componente ainda tente importar, 
+// embora os usos tenham sido removidos dos componentes principais.
+export const initOneSignal = async (userId?: string) => {
+    // No-op
 };
 
-// Envia tags para o OneSignal (útil para segmentação, ex: 'nivel: iniciante')
-export const sendTags = (key: string, value: string) => {
-    try {
-        OneSignal.User.addTag(key, value);
-    } catch (e) {
-        console.error("Erro ao enviar tag OneSignal", e);
-    }
+export const isPushEnabled = async (): Promise<boolean> => {
+    if (typeof window === 'undefined' || !('Notification' in window)) return false;
+    return Notification.permission === 'granted';
+};
+
+export const getOneSignalId = async (): Promise<string | null | undefined> => {
+    return null;
+};
+
+export const syncOneSignalIdToSupabase = async (userId: string) => {
+    // No-op
 };

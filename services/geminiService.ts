@@ -1,12 +1,11 @@
-import { GoogleGenAI } from "@google/genai";
-import { Language } from '../types';
+import { GoogleGenAI, Modality } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // --- CONTEXTO RAG SIMULADO PARA O AGENTE DE SUPORTE ---
 const MINDRISE_KNOWLEDGE_BASE = `
 VOCÊ É O "AGENTE DE SUPORTE MINDRISE". 
-Sua função é atuar como um especialista técnico do app "MindRise".
+Sua função é atuar como um especialista técnico do app "MindRise - Mente Abundante".
 Analise o problema do usuário e forneça a solução exata baseada na lista abaixo.
 
 === BASE DE CONHECIMENTO TÉCNICO E SOLUÇÃO DE PROBLEMAS (TROUBLESHOOTING) ===
@@ -14,7 +13,7 @@ Analise o problema do usuário e forneça a solução exata baseada na lista aba
 1. **PROBLEMAS DE ÁUDIO E VISUALIZAÇÃO**
    - **Sintoma:** "O áudio não toca", "Sem som na visualização".
    - **Solução:** 
-     1. Verifique se o celular não está no modo silencioso.
+     1. Verifique se o celular não está no modo silencioso (especialmente iPhone, a chave lateral deve estar ativada).
      2. Aumente o volume de mídia do aparelho.
      3. Na primeira vez, é necessária internet para baixar o áudio.
      4. Tente trocar entre o modo "Guiada" e "Declaração" para forçar o recarregamento.
@@ -37,15 +36,34 @@ Analise o problema do usuário e forneça a solução exata baseada na lista aba
      - No Android (Chrome): Clique nos 3 pontinhos -> "Instalar aplicativo" ou "Adicionar à tela inicial".
      - No iOS (Safari): Clique no botão Compartilhar (quadrado com seta) -> Role para baixo -> "Adicionar à Tela de Início".
 
+5. **PLANO DE 7 DIAS**
+   - **Sintoma:** "Dia bloqueado", "Não consigo avançar".
+   - **Solução:** O sistema propositalmente bloqueia dias futuros. Você deve concluir o dia atual e aguardar até a meia-noite para liberar o próximo. Isso garante a absorção do aprendizado (Neuroplasticidade).
+   - **Sintoma:** "Quero reiniciar".
+   - **Solução:** Ao completar o dia 7, aparecerá um botão "Iniciar Novo Ciclo".
+
+6. **PROBLEMAS COM A IA (COACH/REPROGRAMAÇÃO)**
+   - **Sintoma:** "IA não responde", "Erro ao gerar".
+   - **Solução:** A IA requer conexão ativa com a internet. Verifique seu Wi-Fi/4G. Se persistir, aguarde 1 minuto e tente novamente (pode ser sobrecarga momentânea do servidor).
+
+7. **PLANEJADOR INTELIGENTE**
+   - **Sintoma:** "Não gera o plano".
+   - **Solução:** Seja específico no objetivo e no prazo (ex: "30 dias"). Se for muito vago, a IA pode falhar.
+
+8. **PRIVACIDADE E EXCLUSÃO**
+   - **Sintoma:** "Quero apagar meus dados".
+   - **Solução:** Isso é um direito seu. Solicite via e-mail para privacy@mindrise.app ou abra um ticket aqui solicitando a exclusão completa.
+
 === DIRETRIZES DE ATENDIMENTO ===
-- Responda SEMPRE no idioma que o usuário usar ou no idioma solicitado.
-- Se o usuário relatar um "Bug Crítico" (tela branca, app fechando sozinho), peça detalhes e responda com [ESCALATE].
+- Se a resposta estiver acima, explique passo a passo, de forma amigável.
+- Se o usuário relatar um "Bug Crítico" (tela branca, app fechando sozinho), peça detalhes do modelo do celular e responda com [ESCALATE].
 - Se o usuário estiver muito irritado ou pedir humano, responda com [ESCALATE].
+- Sempre pergunte no final: "Isso resolveu seu problema ou deseja finalizar este atendimento?"
 `;
 
-export const reframeBelief = async (limitingBelief: string, language: Language = 'pt'): Promise<string> => {
+export const reframeBelief = async (limitingBelief: string): Promise<string> => {
   if (!process.env.API_KEY) {
-    return "Erro: Chave de API não configurada.";
+    return "Erro: Chave de API não configurada. Por favor, configure a API_KEY no ambiente.";
   }
 
   try {
@@ -53,8 +71,6 @@ export const reframeBelief = async (limitingBelief: string, language: Language =
       model: 'gemini-2.5-flash',
       contents: `O usuário tem a seguinte crença limitante: "${limitingBelief}".
         
-        Idioma de resposta: ${language === 'pt' ? 'Português' : language === 'en' ? 'Inglês' : 'Espanhol'}.
-
         Sua tarefa:
         1. Identifique o bloqueio por trás dessa frase.
         2. Reescreva essa frase transformando-a em uma afirmação de Mentalidade Abundante e Vencedora.
@@ -76,7 +92,7 @@ export const reframeBelief = async (limitingBelief: string, language: Language =
   }
 };
 
-export const chatWithCoach = async (history: string[], message: string, language: Language = 'pt'): Promise<string> => {
+export const chatWithCoach = async (history: string[], message: string, userContext?: string): Promise<string> => {
   if (!process.env.API_KEY) return "API Key ausente.";
 
   try {
@@ -85,13 +101,15 @@ export const chatWithCoach = async (history: string[], message: string, language
       contents: `Histórico da conversa:
         ${history.join('\n')}
         
+        ${userContext ? `CONTEXTO ATUAL DO USUÁRIO (Dados do App): \n${userContext}\nUse isso para personalizar a resposta, mas não mencione que está lendo dados, aja naturalmente.` : ''}
+
         Usuário: ${message}`,
       config: {
-        systemInstruction: `Você é o "Mentor MindRise".
-        Idioma obrigatório: ${language === 'pt' ? 'Português' : language === 'en' ? 'Inglês' : 'Espanhol'}.
-        
+        systemInstruction: `Você é o "Mentor Mente Abundante", um coach virtual baseado no livro "Mente Abundante e Vencedora".
         Seus princípios são: Auto-responsabilidade, Mentalidade de Crescimento, Disciplina e Abundância.
-        Responda de forma motivadora, direta e prática. Use emojis moderadamente.`
+        
+        Responda de forma motivadora, direta e prática. Use emojis moderadamente.
+        NUNCA use negrito com dois asteriscos (**texto**). Se precisar enfatizar algo, use CAIXA ALTA ou aspas.`
       }
     });
     return response.text || "";
@@ -112,74 +130,92 @@ export const chatWithSupportAgent = async (history: string[], message: string): 
       Cliente: ${message}`,
       config: {
         systemInstruction: MINDRISE_KNOWLEDGE_BASE,
-        temperature: 0.3,
+        temperature: 0.3, // Baixa temperatura para respostas mais precisas/técnicas
       }
     });
     return response.text || "Desculpe, não consegui processar sua solicitação.";
   } catch (e) {
-    return "Estamos enfrentando instabilidade técnica.";
+    return "Estamos enfrentando instabilidade técnica. Por favor, tente novamente em instantes.";
   }
 };
 
 export const generateGuidedAudio = async (text: string): Promise<string | null> => {
   if (!process.env.API_KEY) return null;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: text }] }],
-      config: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Kore' },
+  const makeRequest = async (retries = 2): Promise<string | null> => {
+    try {
+      // Usando o modelo específico de TTS do Gemini com configuração robusta
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash-preview-tts",
+        contents: {
+           role: 'user',
+           parts: [{ text: text }]
+        },
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              // 'Kore' é uma voz geralmente calma e adequada para guias
+              prebuiltVoiceConfig: { voiceName: 'Kore' },
+            },
           },
         },
-      },
-    });
+      });
 
-    return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || null;
-  } catch (e) {
-    console.error("Erro ao gerar áudio:", e);
-    return null;
-  }
+      // Retorna a string base64 do áudio
+      return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || null;
+    } catch (e: any) {
+      // Retry para erros 500 (Internal Error)
+      if (retries > 0 && (e.status === 500 || e.code === 500 || e.message?.includes('Internal error'))) {
+         console.warn(`Retry TTS... (${retries})`);
+         await new Promise(r => setTimeout(r, 1500));
+         return makeRequest(retries - 1);
+      }
+      
+      console.error("Erro ao gerar áudio:", e);
+      return null;
+    }
+  };
+
+  return makeRequest();
 };
 
-export const analyzePlanAction = async (dayTitle: string, userAnswer: string, language: Language = 'pt'): Promise<string> => {
-  if (!process.env.API_KEY) return "Ótimo trabalho!";
+export const analyzePlanAction = async (dayTitle: string, userAnswer: string): Promise<string> => {
+  if (!process.env.API_KEY) return "Ótimo trabalho! Continue firme no seu propósito.";
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Contexto: Plano de 7 Dias para Mentalidade Abundante.
+      contents: `Contexto: O usuário está fazendo um "Plano de 7 Dias para Mentalidade Abundante".
       
-      Tarefa: "${dayTitle}"
-      Resposta: "${userAnswer}"
-      Idioma: ${language}
+      Tarefa do Dia: "${dayTitle}"
+      Resposta/Ação do Usuário: "${userAnswer}"
       
-      Dê um feedback curto (máximo 2 frases) reforçando a ação ou sugerindo ajuste.`,
+      Sua missão:
+      Analise a resposta do usuário. Aja como um mentor experiente e dê um feedback curto (máximo 2 frases) reforçando a ação dele ou sugerindo um ajuste fino para potencializar o resultado. Termine com uma palavra de incentivo.`,
       config: {
         temperature: 0.7,
       }
     });
 
-    return response.text || "Excelente progresso!";
+    return response.text || "Excelente progresso! Sua dedicação é a chave para a mudança.";
   } catch (e) {
-    return "Parabéns pela ação!";
+    return "Parabéns pela ação! Continue avançando.";
   }
 };
 
-export const analyzeDailyHabit = async (taskName: string, userReflection: string, language: Language = 'pt'): Promise<string> => {
+export const analyzeDailyHabit = async (taskName: string, userReflection: string): Promise<string> => {
   if (!process.env.API_KEY) return "";
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Hábito: "${taskName}"
-      Reflexão: "${userReflection}"
-      Idioma: ${language}
+      contents: `Contexto: Checklist Diário de Mentalidade Vencedora.
+      Hábito: "${taskName}"
+      Reflexão do Usuário: "${userReflection}"
       
-      Dê um "Insight Relâmpago" (máximo 15 palavras).`,
+      Sua missão:
+      Dê um "Insight Relâmpago" (máximo 15 palavras). Seja profundo, filosófico ou motivador, validando o esforço do usuário.`,
       config: {
         temperature: 0.8,
       }
@@ -191,42 +227,57 @@ export const analyzeDailyHabit = async (taskName: string, userReflection: string
   }
 };
 
-export const generateGratitudeAffirmation = async (gratitudeText: string, language: Language = 'pt'): Promise<string> => {
+export const generateGratitudeAffirmation = async (gratitudeText: string): Promise<string> => {
   if (!process.env.API_KEY) return "";
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Gratidão do usuário: "${gratitudeText}".
-      Idioma: ${language}
+      contents: `O usuário escreveu o seguinte no diário de gratidão: "${gratitudeText}".
       
-      Escreva uma Afirmação Poderosa Curta (máximo 1 frase) que conecte essa gratidão com a atração de mais prosperidade.`,
+      Sua missão:
+      Atue como um coach de Mentalidade Abundante. Escreva uma Afirmação Poderosa Curta (máximo 1 frase) que conecte esse motivo de gratidão com a atração de mais prosperidade ou felicidade.
+      
+      Exemplo:
+      Entrada: "Sou grato pela saúde da minha família"
+      Saída: "Minha gratidão pela saúde atrai vitalidade e alegria infinitas para o meu lar."`,
       config: {
         temperature: 0.7,
       }
     });
 
-    return response.text || "";
+    return response.text || "A gratidão é a chave que abre todas as portas da abundância.";
   } catch (e) {
-    return "";
+    return "Obrigado por agradecer. A abundância começa aqui.";
   }
 };
 
-export const generateActionPlan = async (goal: string, timeframe: string, language: Language = 'pt'): Promise<any[]> => {
+// --- NOVO: GERADOR DE PLANO DE AÇÃO ---
+export const generateActionPlan = async (goal: string, timeframe: string): Promise<any[]> => {
   if (!process.env.API_KEY) throw new Error("API Key ausente");
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Objetivo: "${goal}".
-      Prazo: "${timeframe}".
-      Idioma de resposta dos textos: ${language}
+      contents: `O usuário tem o objetivo: "${goal}".
+      O prazo desejado é: "${timeframe}".
 
-      Crie um plano de ação (Checklist) com 5 a 10 passos.
-      Retorne APENAS um JSON array válido.
-      Exemplo: [ { "text": "...", "timing": "Dia 1" } ]`,
+      Sua missão:
+      Crie um plano de ação prático no formato de Checklist, dividido cronologicamente para caber nesse prazo.
+      
+      Regras:
+      1. Seja específico nas tarefas (ex: "Criar conta no Instagram" em vez de "Começar marketing").
+      2. Divida o tempo de forma lógica (ex: "Dia 1", "Semana 1", "Mês 2").
+      3. Gere entre 5 a 15 passos, dependendo da complexidade.
+      4. Retorne APENAS um JSON array válido. Sem markdown, sem texto extra.
+
+      Formato esperado do JSON:
+      [
+        { "text": "Pesquisar concorrentes", "timing": "Dia 1" },
+        { "text": "Definir identidade visual", "timing": "Semana 1" }
+      ]`,
       config: {
-        temperature: 0.4, 
+        temperature: 0.4, // Mais determinístico para seguir instruções JSON
         responseMimeType: "application/json"
       }
     });
@@ -237,6 +288,6 @@ export const generateActionPlan = async (goal: string, timeframe: string, langua
     return JSON.parse(jsonText);
   } catch (e) {
     console.error("Erro ao gerar plano:", e);
-    throw new Error("Não foi possível criar o plano.");
+    throw new Error("Não foi possível criar o plano. Tente ser mais específico.");
   }
 };

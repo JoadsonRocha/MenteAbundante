@@ -4,8 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { db, supabase } from '../services/database';
 import { UserProfile } from '../types';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const UserProfileComponent: React.FC = () => {
+  const { t } = useLanguage();
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<UserProfile>({ full_name: '', mantra: '', statement: '' });
   const [loading, setLoading] = useState(true);
@@ -113,7 +115,9 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
       await db.updateProfile(profile);
       
       if (showPasswordSection && newPassword) {
-        if (!supabase) throw new Error("Erro de conexão");
+        if (!supabase) {
+           throw new Error("Alteração de senha indisponível no modo offline.");
+        }
         const { error } = await supabase.auth.updateUser({ password: newPassword });
         if (error) throw error;
         setNewPassword('');
@@ -173,8 +177,14 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
             />
         </div>
 
-        <h2 className="text-4xl font-extrabold text-[#F87A14]">Seu Perfil</h2>
-        <p className="text-slate-500">Clique na foto para alterar sua imagem.</p>
+        <h2 className="text-4xl font-extrabold text-[#F87A14]">{t('profile.title')}</h2>
+        <p className="text-slate-500">{t('profile.subtitle')}</p>
+        
+        {!supabase && (
+            <span className="inline-block mt-2 text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-bold">
+               Modo Offline
+            </span>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden relative">
@@ -203,7 +213,7 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Como prefere ser chamado?</label>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{t('profile.label_name')}</label>
             <div className="relative">
               <User className="absolute left-4 top-3.5 text-slate-400" size={18} />
               <input
@@ -211,7 +221,7 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
                 value={profile.full_name}
                 onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
                 className="w-full pl-11 p-3 rounded-xl border border-slate-200 outline-none focus:border-[#F87A14] focus:ring-1 focus:ring-orange-500 transition-all"
-                placeholder="Seu nome"
+                placeholder={t('profile.placeholder_name')}
               />
             </div>
           </div>
@@ -219,13 +229,13 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
           {/* Mantra */}
           <div className="space-y-1">
              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center gap-1">
-               <Sparkles size={12} className="text-[#F87A14]" /> Sua Frase de Poder (Mantra Curto)
+               <Sparkles size={12} className="text-[#F87A14]" /> {t('profile.label_mantra')}
              </label>
              <input
                 value={profile.mantra}
                 onChange={(e) => setProfile({ ...profile, mantra: e.target.value })}
                 className="w-full p-3 rounded-xl border border-slate-200 outline-none focus:border-[#F87A14] focus:ring-1 focus:ring-orange-500 transition-all bg-amber-50/30 placeholder:text-slate-400/80"
-                placeholder="Ex: Sou disciplinado e venço meus desafios."
+                placeholder={t('profile.placeholder_mantra')}
              />
           </div>
 
@@ -272,12 +282,14 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
              <button 
                type="button"
                onClick={() => setShowPasswordSection(!showPasswordSection)}
-               className="text-sm font-bold text-slate-500 hover:text-[#F87A14] flex items-center gap-2 transition-colors"
+               disabled={!supabase}
+               className={`text-sm font-bold flex items-center gap-2 transition-colors ${!supabase ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-[#F87A14]'}`}
+               title={!supabase ? "Indisponível offline" : ""}
              >
-               <Key size={16} /> {showPasswordSection ? 'Cancelar alteração de senha' : 'Alterar Senha'}
+               <Key size={16} /> {showPasswordSection ? 'Cancelar' : t('profile.btn_password')}
              </button>
 
-             {showPasswordSection && (
+             {showPasswordSection && supabase && (
                 <div className="mt-4 animate-fade-in">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Nova Senha</label>
                   <input
@@ -298,7 +310,7 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
               disabled={saving}
               className="w-full py-4 bg-gradient-to-r from-[#F87A14] to-orange-500 text-white rounded-xl font-bold shadow-lg shadow-orange-200 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
             >
-              {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> Salvar Alterações</>}
+              {saving ? <Loader2 className="animate-spin" /> : <><Save size={20} /> {t('profile.btn_save')}</>}
             </button>
           </div>
 
@@ -310,7 +322,7 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
           onClick={signOut}
           className="text-red-400 hover:text-red-500 hover:bg-red-50 px-6 py-2 rounded-full transition-colors text-sm font-medium inline-flex items-center gap-2"
         >
-          <LogOut size={16} /> Sair da conta
+          <LogOut size={16} /> {t('profile.btn_logout')}
         </button>
 
         <div className="pt-4">
@@ -318,7 +330,7 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
              onClick={() => setShowPrivacy(true)}
              className="text-xs text-slate-400 hover:text-slate-600 hover:underline transition-colors"
           >
-             Políticas de Privacidade
+             {t('auth.terms')}
           </button>
         </div>
       </div>
