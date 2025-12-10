@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Save, Key, LogOut, CheckCircle, AlertCircle, Loader2, Sparkles, Camera, ScrollText, PenTool, Smartphone, CheckCircle2 } from 'lucide-react';
+import { User, Mail, Save, Key, LogOut, CheckCircle, AlertCircle, Loader2, Sparkles, Camera, ScrollText, PenTool, Smartphone, CheckCircle2, Copy } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { db, supabase } from '../services/database';
 import { UserProfile } from '../types';
@@ -105,11 +105,11 @@ const UserProfileComponent: React.FC = () => {
   const handleUseTemplate = () => {
     const template = `Eu, [SEU NOME], tenho o objetivo definitivo de acumular a quantia de [VALOR] até o dia [DATA].
 
-Em troca desse dinheiro, darei o melhor de mim na posição de [SUA PROFISSÃO/SERVIÇO], entregando a maior quantidade e a melhor qualidade possível de servicio.
+Em troca desse dinheiro, darei o melhor de mim na posição de [SUA PROFISSÃO/SERVIÇO], entregando a maior quantidade e a mejor qualidade possível de servicio.
 
-Acredito firmemente que terei esse dinheiro em minhas mãos. Minha fé é tão forte que já posso ver esse dinheiro diante dos meus olhos. Posso tocá-lo com as manos. Ele está agora à espera de ser transferido para mim na proporção em que eu entregar o servicio que pretendo dar em troca.
+Acredito firmemente que terei esse dinheiro em minhas mãos. Minha fé é tão forte que já posso ver esse dinheiro diante dos meus olhos. Posso tocá-lo com as mãos. Ele está agora à espera de ser transferido para mim na proporção em que eu entregar o serviço que pretendo dar em troca.
 
-Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colocar esse plano em acción.`;
+Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colocar esse plano em ação.`;
     
     setProfile(prev => ({ ...prev, statement: template }));
   };
@@ -145,6 +145,13 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const copyPlayerId = () => {
+    if (playerId) {
+      navigator.clipboard.writeText(playerId);
+      alert("OneSignal ID copiado! Use-o para enviar notificações de teste no painel.");
     }
   };
 
@@ -327,9 +334,20 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
 
       <div className="text-center space-y-4">
         {playerId && (
-            <p className="text-xs text-slate-300 flex items-center justify-center gap-1 font-mono">
-                <Smartphone size={10} /> Device ID: {playerId.substring(0, 8)}...
-            </p>
+            <div 
+              onClick={copyPlayerId}
+              className="cursor-pointer group flex flex-col items-center justify-center p-3 rounded-lg border border-dashed border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all"
+            >
+                <p className="text-xs text-slate-400 group-hover:text-emerald-600 flex items-center gap-1 font-mono mb-1">
+                    <Smartphone size={10} /> Test ID (OneSignal):
+                </p>
+                <p className="text-[10px] text-slate-300 group-hover:text-emerald-500 break-all font-mono">
+                    {playerId}
+                </p>
+                <span className="text-[9px] text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 mt-1">
+                    <Copy size={8} /> Clique para copiar
+                </span>
+            </div>
         )}
 
         <button

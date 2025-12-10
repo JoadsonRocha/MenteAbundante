@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Bell, BellOff, TrendingUp, Brain, Calendar, CheckCircle } from 'lucide-react';
+import { Bell, BellOff, TrendingUp, Brain, Calendar, CheckCircle, Loader2 } from 'lucide-react';
 import { db } from '../services/database';
 import { ActivityLog, BeliefEntry } from '../types';
+import { requestNotificationPermission, isPushEnabled } from '../services/notificationService';
 
 const ProgressStats: React.FC = () => {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [beliefCount, setBeliefCount] = useState(0);
-  const [notificationPermission, setNotificationPermission] = useState(Notification.permission);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
+  const [loadingToggle, setLoadingToggle] = useState(false);
 
   useEffect(() => {
     // Carregar dados
@@ -37,38 +38,42 @@ const ProgressStats: React.FC = () => {
       const beliefs = await db.getBeliefs();
       setBeliefCount(beliefs.length);
       
-      // Estado de notificação local
-      const savedReminder = localStorage.getItem('mente_reminders') === 'true';
-      setRemindersEnabled(savedReminder && Notification.permission === 'granted');
+      // Checar status do OneSignal
+      const enabled = await isPushEnabled();
+      setRemindersEnabled(enabled);
     };
     loadData();
   }, []);
 
-  const requestNotification = async () => {
-    if (!('Notification' in window)) {
-      alert("Este navegador não suporta notificações.");
-      return;
-    }
-
-    const permission = await Notification.requestPermission();
-    setNotificationPermission(permission);
-
-    if (permission === 'granted') {
-      setRemindersEnabled(true);
-      localStorage.setItem('mente_reminders', 'true');
-      // Notificação manual removida conforme solicitação
-    } else {
-      setRemindersEnabled(false);
-      localStorage.setItem('mente_reminders', 'false');
-    }
-  };
-
-  const toggleReminders = () => {
-    if (remindersEnabled) {
-      setRemindersEnabled(false);
-      localStorage.setItem('mente_reminders', 'false');
-    } else {
-      requestNotification();
+  const toggleReminders = async () => {
+    setLoadingToggle(true);
+    try {
+      if (remindersEnabled) {
+        // Desativar (Opt-out)
+        if (window.OneSignal) {
+           await window.OneSignal.User.PushSubscription.optOut();
+        }
+        setRemindersEnabled(false);
+      } else {
+        // Ativar (Opt-in via Slidedown ou Nativo)
+        await requestNotificationPermission();
+        
+        // Verifica novamente após um breve delay para atualizar UI
+        // (O usuário precisa aceitar o prompt do navegador)
+        setTimeout(async () => {
+           const enabled = await isPushEnabled();
+           setRemindersEnabled(enabled);
+           setLoadingToggle(false);
+        }, 1000); // Check rápido
+        
+        // Listener global no service worker cuidará do resto
+        return; 
+      }
+    } catch (e) {
+      console.error("Erro ao alterar notificações", e);
+    } finally {
+      // Se for desativar, remove o loading logo. Se for ativar, o timeout cuida (ou o listener)
+      if (remindersEnabled) setLoadingToggle(false); 
     }
   };
 
@@ -157,13 +162,16 @@ const ProgressStats: React.FC = () => {
         
         <button
           onClick={toggleReminders}
+          disabled={loadingToggle}
           className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 ${
             remindersEnabled 
               ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20' 
               : 'bg-white/10 hover:bg-white/20 text-slate-200'
           }`}
         >
-          {remindersEnabled ? (
+          {loadingToggle ? (
+             <Loader2 size={18} className="animate-spin" />
+          ) : remindersEnabled ? (
             <>
               <CheckCircle size={18} /> Ativado
             </>
