@@ -6,7 +6,11 @@ import PrivacyPolicyModal from './PrivacyPolicyModal';
 import { useLanguage } from '../contexts/LanguageContext';
 import LanguageSwitcher from './LanguageSwitcher';
 
-const AuthScreen: React.FC = () => {
+interface AuthScreenProps {
+  onClose?: () => void;
+}
+
+const AuthScreen: React.FC<AuthScreenProps> = ({ onClose }) => {
   const { t } = useLanguage();
   const [isLogin, setIsLogin] = useState(true);
   const [isRecovery, setIsRecovery] = useState(false);
@@ -36,6 +40,9 @@ const AuthScreen: React.FC = () => {
           password,
         });
         if (error) throw error;
+        // Sucesso no Login - O AuthContext vai detectar a mudança e fechar o modal via App.tsx, 
+        // mas chamamos onClose para feedback imediato se necessário.
+        if (onClose) onClose();
       } else {
         const { error, data } = await supabase.auth.signUp({
           email,
@@ -45,6 +52,8 @@ const AuthScreen: React.FC = () => {
         if (data.user && !data.session) {
            setSuccessMessage(t('auth.success_created'));
            setIsLogin(true);
+        } else if (data.session && onClose) {
+           onClose();
         }
       }
     } catch (err: any) {
@@ -84,17 +93,24 @@ const AuthScreen: React.FC = () => {
     setSuccessMessage(null);
   };
 
-  return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
-      
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/50 overflow-hidden border border-slate-100 animate-fade-in relative z-10">
+  // Se não tiver onClose (é tela cheia), usa min-h-screen. Se tiver (modal), usa h-auto.
+  const containerClass = onClose 
+    ? "w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 relative z-10"
+    : "w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/50 overflow-hidden border border-slate-100 animate-fade-in relative z-10";
+
+  const wrapperClass = onClose
+    ? "w-full"
+    : "min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4";
+
+  const content = (
+      <div className={containerClass}>
         
         {/* Header */}
         <div className="bg-slate-900 p-8 text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#F87A14] rounded-full blur-[60px] opacity-20 transform translate-x-1/2 -translate-y-1/2"></div>
           
-          {/* Language Switcher posicionado dentro do card (Header) */}
-          <div className="absolute top-6 right-6 z-20">
+          {/* Language Switcher - Posicionado à esquerda (oposto ao botão de fechar que fica à direita no modal) */}
+          <div className="absolute top-6 left-6 z-20">
              <LanguageSwitcher compact />
           </div>
 
@@ -269,9 +285,18 @@ const AuthScreen: React.FC = () => {
              </button>
           </div>
         </div>
+        
+        <PrivacyPolicyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
       </div>
-      
-      <PrivacyPolicyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
+  );
+
+  if (onClose) {
+    return content;
+  }
+
+  return (
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
+      {content}
     </div>
   );
 };

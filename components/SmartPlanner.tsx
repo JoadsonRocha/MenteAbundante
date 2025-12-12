@@ -129,9 +129,19 @@ const SmartPlanner: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (confirm("Tem certeza que deseja apagar este plano?")) {
-      await db.deleteGoalPlan(id);
+      // Optimistic Update: Remove da interface imediatamente
+      const previousPlans = [...plans];
       setPlans(plans.filter(p => p.id !== id));
       if (expandedPlanId === id) setExpandedPlanId(null);
+
+      try {
+        await db.deleteGoalPlan(id);
+      } catch (error) {
+        console.error("Erro ao excluir", error);
+        // Reverte se der erro fatal (raro, pois db.deleteGoalPlan engole erros de rede)
+        setPlans(previousPlans); 
+        alert("Ocorreu um erro ao excluir o plano. Tente novamente.");
+      }
     }
   };
 
@@ -169,11 +179,12 @@ const SmartPlanner: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-20">
       
-      <div className="text-center mb-8">
-        <h2 className="text-4xl font-extrabold text-[#F87A14] flex items-center justify-center gap-2">
-           <Rocket size={36} /> {t('planner.title')}
+      {/* Header Padronizado */}
+      <div className="text-center space-y-3 px-2 mb-8">
+        <h2 className="text-2xl md:text-3xl font-extrabold text-[#F87A14] flex items-center justify-center gap-2">
+           <Rocket size={28} className="text-[#F87A14]" /> {t('planner.title')}
         </h2>
-        <p className="text-slate-500 max-w-lg mx-auto">
+        <p className="text-slate-500 text-base leading-relaxed max-w-lg mx-auto">
           {t('planner.subtitle')}
         </p>
       </div>

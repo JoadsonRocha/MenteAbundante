@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X, Shield, Lock, Server, BrainCircuit } from 'lucide-react';
 
 interface PrivacyPolicyModalProps {
@@ -32,7 +32,7 @@ const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen, onClose
           <p className="font-medium text-slate-800">Última atualização: {new Date().toLocaleDateString()}</p>
           
           <p>
-            O <strong>MindRise - Mente Abundante</strong> valoriza sua privacidade. Esta política descreve como coletamos, usamos e protegemos suas informações ao utilizar nosso aplicativo de reprogramação mental e produtividade.
+            O <strong>Rise Mindr - Mente Abundante</strong> valoriza sua privacidade. Esta política descreve como coletamos, usamos e protegemos suas informações ao utilizar nosso aplicativo de reprogramação mental e produtividade.
           </p>
 
           <section>

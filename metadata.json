@@ -1,5 +1,9 @@
 {
-  "name": "MindRise_Idiomas_integrado_OneSiganl ",
-  "description": "Uma aplicação interativa para reprogramação mental, baseada em princípios de PNL, psicologia e mentalidade de alta performance. Inclui ferramentas de diário, visualização e coaching via IA.",
-  "requestFramePermissions": []
+  "name": "Rise Mindr",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "description": ""
 }

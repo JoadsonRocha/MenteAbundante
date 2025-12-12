@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, Loader2, LogOut, WifiOff, ArrowLeft } from 'lucide-react';
+import { Menu, Loader2, WifiOff, LayoutDashboard, MessageSquareText, CheckSquare, MoreHorizontal, User, Brain, Heart, LogOut, X } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import BeliefReprogrammer from './components/BeliefReprogrammer';
@@ -23,16 +23,15 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
-import { initOneSignal } from './services/notificationService'; // Importação adicionada
+import { initOneSignal } from './services/notificationService';
 
-// Componente interno para gerenciar o estado da aplicação pós-login
 const AppContent: React.FC = () => {
   const { user, loading, signOut } = useAuth();
   
-  // INICIALIZAÇÃO DA ABA: Tenta ler do localStorage, senão usa 'dashboard'
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     if (typeof window !== 'undefined') {
       const savedTab = localStorage.getItem('mente_active_tab');
+      if (savedTab === 'profile') return 'dashboard';
       return (savedTab as Tab) || 'dashboard';
     }
     return 'dashboard';
@@ -40,62 +39,90 @@ const AppContent: React.FC = () => {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  
-  // Estado para o PWA Install Prompt
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  
-  // Estado para o Onboarding
   const [showOnboarding, setShowOnboarding] = useState(false);
-  // Estado para a Declaração de Desejo
   const [desireStatement, setDesireStatement] = useState<string | null>(null);
   const [showDesireModal, setShowDesireModal] = useState(false);
 
-  // Efeito: Salva a aba atual e ROLA PARA O TOPO sempre que ela mudar
+  // --- NOVOS ESTADOS PARA GUEST MODE ---
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  // Lista de abas que exigem login para acessar
+  // ADICIONADO: 'anxiety' agora é protegida
+  const protectedTabs: Tab[] = [
+    'coach', 
+    'reprogram', 
+    'plan', 
+    'checklist', 
+    'visualization', 
+    'gratitude', 
+    'smart_planner', 
+    'stats', 
+    'profile', 
+    'feedback', 
+    'support',
+    'anxiety'
+  ];
+
+  // Função intermediária para navegação protegida
+  const handleTabChange = (tab: Tab) => {
+    // Se não tiver usuário E a aba for protegida
+    if (!user && protectedTabs.includes(tab)) {
+      setShowLoginModal(true);
+      return;
+    }
+    
+    // Navegação normal
+    setActiveTab(tab);
+    setSidebarOpen(false); // Fecha sidebar no mobile ao navegar
+  };
+
   useEffect(() => {
     localStorage.setItem('mente_active_tab', activeTab);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeTab]);
 
-  // Efeito: Inicialização de Dados do Usuário
+  // Efeito para Logout: Se o usuário ficar nulo (clicou em sair), volta pra dashboard e abre login
+  useEffect(() => {
+    if (!loading && !user && protectedTabs.includes(activeTab)) {
+       setActiveTab('dashboard');
+       setShowLoginModal(true);
+    }
+  }, [user, loading]);
+
+  // Efeito para inicialização de dados (User Dependent)
   useEffect(() => {
     if (user) {
-      // 1. Forçar sincronização imediata dos dados locais
       syncLocalDataToSupabase();
-      
-      // 2. Inicializar OneSignal e vincular ao usuário
       initOneSignal(user.id);
-
-      // 3. Carregar dados cruciais em background para cache
       db.getTasks();
       db.getPlan();
+      setShowLoginModal(false); // Fecha modal se logar
+    } else {
+      // Inicializa OneSignal mesmo sem usuário (para notificações genéricas)
+      initOneSignal(undefined);
     }
-  }, [user?.id]); // Executa apenas quando o ID do usuário muda
+  }, [user?.id]);
 
   useEffect(() => {
-    // Listeners de rede
     const handleOnline = () => {
       setIsOffline(false);
-      syncLocalDataToSupabase();
+      if(user) syncLocalDataToSupabase();
     };
     const handleOffline = () => setIsOffline(true);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
-    // Captura evento de instalação PWA
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Inicialização de dados do usuário
     if (user) {
       const initAppData = async () => {
-        // Check Profile for Statement
         const profile = await db.getProfile();
-        
-        // Verifica se já mostrou nesta sessão
         const hasShownDesire = sessionStorage.getItem('mente_desire_shown');
         
         if (profile?.statement && !hasShownDesire) {
@@ -104,13 +131,11 @@ const AppContent: React.FC = () => {
           sessionStorage.setItem('mente_desire_shown', 'true');
         }
 
-        // Check Onboarding
         const hasSeenOnboarding = localStorage.getItem('mente_onboarding_completed');
         if (!hasSeenOnboarding) {
           setShowOnboarding(true);
         }
       };
-      
       initAppData();
     }
 
@@ -130,7 +155,6 @@ const AppContent: React.FC = () => {
     setShowOnboarding(true);
   };
   
-  // Função de Instalação passada para Sidebar e Banner
   const installApp = async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
@@ -139,13 +163,8 @@ const AppContent: React.FC = () => {
     setDeferredPrompt(null);
   };
 
-  const handleLogout = async () => {
-    setActiveTab('dashboard'); // Garante visualmente antes de sair
-    await signOut();
-  };
-
   const handleNavigateToPlanner = () => {
-    setActiveTab('smart_planner');
+    handleTabChange('smart_planner');
   };
 
   if (loading) {
@@ -156,24 +175,18 @@ const AppContent: React.FC = () => {
     );
   }
 
-  if (!user) {
-    return (
-      <AuthScreen />
-    );
-  }
-
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard onChangeTab={setActiveTab} onOpenAnxiety={() => setActiveTab('anxiety')} />;
+        return <Dashboard onChangeTab={handleTabChange} onOpenAnxiety={() => handleTabChange('anxiety')} />;
       case 'stats':
         return <ProgressStats />;
       case 'reprogram':
         return <BeliefReprogrammer />;
       case 'plan':
-        return <SevenDayPlan onNavigate={setActiveTab} />;
+        return <SevenDayPlan onNavigate={handleTabChange} />;
       case 'smart_planner': 
         return <SmartPlanner />;
       case 'checklist':
@@ -191,79 +204,106 @@ const AppContent: React.FC = () => {
       case 'feedback':
         return <FeedbackForm />;
       case 'anxiety':
-        return <AnxietyControl onClose={() => setActiveTab('dashboard')} onNavigateToPlanner={handleNavigateToPlanner} />;
+        // Ansiedade agora é protegida e renderiza normal no layout (removemos o onClose pois usa o layout padrão)
+        return <AnxietyControl onNavigateToPlanner={handleNavigateToPlanner} />;
       case 'about':
-        return <About navigateTo={setActiveTab} />;
+        return <About navigateTo={handleTabChange} />;
       default:
-        return <Dashboard onChangeTab={setActiveTab} onOpenAnxiety={() => setActiveTab('anxiety')} />;
+        return <Dashboard onChangeTab={handleTabChange} onOpenAnxiety={() => handleTabChange('anxiety')} />;
     }
   };
+
+  const isActive = (tab: Tab) => activeTab === tab;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex font-sans">
       <Sidebar 
         activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
+        setActiveTab={handleTabChange} 
         isOpen={sidebarOpen}
         toggleSidebar={toggleSidebar}
         onOpenTour={handleOpenOnboarding}
-        installApp={deferredPrompt ? installApp : undefined} // Passa função apenas se disponível
+        installApp={deferredPrompt ? installApp : undefined} 
       />
 
-      <main className="flex-1 min-w-0 relative">
+      <main className="flex-1 min-w-0 relative flex flex-col h-screen overflow-hidden">
         {/* Offline Warning */}
         {isOffline && (
-          <div className="bg-slate-800 text-white text-xs py-1 px-4 text-center flex items-center justify-center gap-2">
+          <div className="bg-slate-800 text-white text-xs py-1 px-4 text-center flex items-center justify-center gap-2 shrink-0 z-50">
             <WifiOff size={12} />
-            <span>Modo Offline: Alterações salvas no dispositivo e sincronizadas ao reconectar.</span>
+            <span>Modo Offline: Alterações salvas no dispositivo.</span>
           </div>
         )}
 
-        {/* Mobile Header Modernizado */}
-        <div className="lg:hidden bg-white px-6 py-4 border-b border-slate-200 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="font-extrabold text-[#F87A14] text-xl tracking-tight leading-none">MindRise</h1>
-              <p className="text-[10px] text-slate-500 font-medium tracking-wide">& Vitoriosa</p>
+        {/* Mobile Header Minimalista */}
+        <div className="lg:hidden bg-white px-5 py-3 border-b border-slate-100 flex items-center justify-between sticky top-0 z-30 shrink-0">
+          <button onClick={() => handleTabChange('dashboard')} className="flex items-center gap-2">
+            <div className="flex flex-col items-start">
+              <h1 className="font-extrabold text-[#F87A14] text-lg tracking-tight leading-none">Rise Mindr</h1>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none mt-0.5">Avance!</span>
             </div>
-          </div>
+          </button>
           
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={handleLogout}
-              className="text-slate-400 hover:text-red-500 p-2 rounded-lg transition-colors active:scale-95"
-              title="Sair"
-            >
-              <LogOut size={20} />
-            </button>
-            
-            <button 
-              onClick={toggleSidebar} 
-              className="text-slate-600 hover:text-[#F87A14] bg-slate-50 p-2 rounded-lg transition-colors active:scale-95"
-            >
-              <Menu size={24} />
-            </button>
+          <div className="flex items-center gap-1">
+             {/* Header Actions Placeholder */}
           </div>
         </div>
 
         {/* Content Area */}
-        <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-[calc(100vh-64px)] lg:min-h-screen pb-20">
-          {/* Botão Voltar Universal (Mobile e Desktop) - Estilo Minimalista Responsivo */}
-          {activeTab !== 'dashboard' && activeTab !== 'anxiety' && (
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className="mb-6 mt-2 lg:mt-6 p-0 text-slate-400 hover:text-[#F87A14] transition-colors group block"
-              title="Voltar ao Início"
-            >
-              {/* Tamanho 24px no mobile (w-6 h-6) e 32px no desktop (w-8 h-8) */}
-              <ArrowLeft className="w-6 h-6 md:w-8 md:h-8 group-hover:-translate-x-1 transition-transform" />
-            </button>
-          )}
-
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 pb-32 lg:pb-8 max-w-7xl mx-auto w-full">
           {renderContent()}
         </div>
 
-        {/* PWA Install Banner (Rodapé) */}
+        {/* --- BOTTOM NAVIGATION BAR (MOBILE ONLY) --- */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 px-6 py-2 pb-safe flex justify-between items-center h-[80px]">
+           
+           <button 
+             onClick={() => handleTabChange('dashboard')}
+             className={`flex flex-col items-center gap-1 w-12 transition-colors ${isActive('dashboard') ? 'text-[#F87A14]' : 'text-slate-400'}`}
+           >
+             <LayoutDashboard size={24} strokeWidth={isActive('dashboard') ? 2.5 : 2} />
+             <span className="text-[10px] font-medium">Início</span>
+           </button>
+
+           <button 
+             onClick={() => handleTabChange('reprogram')}
+             className={`flex flex-col items-center gap-1 w-12 transition-colors ${isActive('reprogram') ? 'text-[#F87A14]' : 'text-slate-400'}`}
+           >
+             <Brain size={24} strokeWidth={isActive('reprogram') ? 2.5 : 2} />
+             <span className="text-[10px] font-medium">Reprog.</span>
+           </button>
+
+           <div className="relative -top-6">
+             <button 
+               onClick={() => handleTabChange('coach')}
+               className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-transform active:scale-95 border-4 border-[#F8FAFC] ${
+                 isActive('coach') 
+                   ? 'bg-gradient-to-br from-[#F87A14] to-orange-600 text-white shadow-orange-300' 
+                   : 'bg-slate-800 text-white shadow-slate-300'
+               }`}
+             >
+               <MessageSquareText size={28} />
+             </button>
+           </div>
+
+           <button 
+             onClick={() => handleTabChange('gratitude')}
+             className={`flex flex-col items-center gap-1 w-12 transition-colors ${isActive('gratitude') ? 'text-[#F87A14]' : 'text-slate-400'}`}
+           >
+             <Heart size={24} strokeWidth={isActive('gratitude') ? 2.5 : 2} />
+             <span className="text-[10px] font-medium">Gratidão</span>
+           </button>
+
+           <button 
+             onClick={toggleSidebar}
+             className={`flex flex-col items-center gap-1 w-12 transition-colors ${sidebarOpen ? 'text-[#F87A14]' : 'text-slate-400'}`}
+           >
+             <MoreHorizontal size={24} strokeWidth={2} />
+             <span className="text-[10px] font-medium">Menu</span>
+           </button>
+        </div>
+
+        {/* PWA Install Banner */}
         <InstallBanner installAction={installApp} deferredPrompt={deferredPrompt} />
 
         {/* Modals */}
@@ -275,6 +315,21 @@ const AppContent: React.FC = () => {
             onClose={() => setShowDesireModal(false)} 
             statement={desireStatement} 
           />
+        )}
+
+        {/* Login Modal Overlay */}
+        {showLoginModal && (
+          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex justify-center items-center p-4 animate-in fade-in duration-200">
+             <div className="relative w-full max-w-md animate-in zoom-in-95 duration-200">
+                <button 
+                  onClick={() => setShowLoginModal(false)} 
+                  className="absolute top-4 right-4 z-50 p-2 bg-white/20 hover:bg-white/40 rounded-full text-white backdrop-blur-md transition-all"
+                >
+                  <X size={20} />
+                </button>
+                <AuthScreen onClose={() => setShowLoginModal(false)} />
+             </div>
+          </div>
         )}
       </main>
     </div>

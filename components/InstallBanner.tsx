@@ -26,15 +26,16 @@ const InstallBanner: React.FC<InstallBannerProps> = ({ installAction, deferredPr
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 p-4 z-50 animate-slide-up">
-      <div className="max-w-md mx-auto bg-slate-900 text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between border border-slate-700">
+    // Ajustado bottom-24 para mobile (acima do menu) e bottom-4 para desktop
+    <div className="fixed bottom-24 lg:bottom-4 left-4 right-4 z-50 animate-slide-up lg:left-auto lg:right-4 lg:w-96">
+      <div className="bg-slate-900 text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between border border-slate-700">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
             <Logo size={40} />
           </div>
           <div>
-            <h4 className="font-bold text-sm">Instalar MindRise</h4>
-            <p className="text-xs text-slate-400">Acesse offline e mais rápido</p>
+            <h4 className="font-bold text-sm">Instalar App</h4>
+            <p className="text-[10px] text-slate-400">Acesso rápido e offline</p>
           </div>
         </div>
         

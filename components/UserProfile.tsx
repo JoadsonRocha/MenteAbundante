@@ -20,7 +20,7 @@ const UserProfileComponent: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [showPasswordSection, setShowPasswordSection] = useState(false);
 
-  // State para seção de Napoleon Hill
+  // State para seção de Declaração
   const [showStatementSection, setShowStatementSection] = useState(false);
   
   // State para modal de privacidade
@@ -105,7 +105,7 @@ const UserProfileComponent: React.FC = () => {
   const handleUseTemplate = () => {
     const template = `Eu, [SEU NOME], tenho o objetivo definitivo de acumular a quantia de [VALOR] até o dia [DATA].
 
-Em troca desse dinheiro, darei o melhor de mim na posição de [SUA PROFISSÃO/SERVIÇO], entregando a maior quantidade e a mejor qualidade possível de servicio.
+Em troca desse dinheiro, darei o melhor de mim na posição de [SUA PROFISSÃO/SERVIÇO], entregando a maior quantidade e a melhor qualidade possível de serviço.
 
 Acredito firmemente que terei esse dinheiro em minhas mãos. Minha fé é tão forte que já posso ver esse dinheiro diante dos meus olhos. Posso tocá-lo com as mãos. Ele está agora à espera de ser transferido para mim na proporção em que eu entregar o serviço que pretendo dar em troca.
 
@@ -254,7 +254,7 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
              />
           </div>
 
-          {/* Declaração de Desejo (Napoleon Hill) */}
+          {/* Declaração de Objetivo Principal */}
           <div className="pt-2">
             <button 
               type="button"
@@ -263,7 +263,7 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
             >
               <div className="flex items-center gap-2">
                 <ScrollText size={20} />
-                Declaração de Desejo (Napoleon Hill)
+                Declaração de Objetivo Principal
               </div>
               <PenTool size={16} />
             </button>
@@ -272,7 +272,7 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
               <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl animate-fade-in space-y-3">
                  <div className="flex justify-between items-start">
                    <p className="text-xs text-slate-500 leading-relaxed mb-2">
-                     Baseado em "Quem Pensa Enriquece". Esta declaração aparecerá toda vez que você abrir o app para reforçar seu subconsciente.
+                     Defina seu objetivo principal de forma clara e objetiva. Esta declaração aparecerá toda vez que você abrir o app para reforçar seu subconsciente.
                    </p>
                    <button 
                      type="button"

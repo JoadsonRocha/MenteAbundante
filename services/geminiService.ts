@@ -4,8 +4,8 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // --- CONTEXTO RAG SIMULADO PARA O AGENTE DE SUPORTE ---
 const MINDRISE_KNOWLEDGE_BASE = `
-VOCÊ É O "AGENTE DE SUPORTE MINDRISE". 
-Sua função é atuar como um especialista técnico do app "MindRise - Mente Abundante".
+VOCÊ É O "AGENTE DE SUPORTE RISE MINDR". 
+Sua função é atuar como um especialista técnico do app "Rise Mindr - Mente Abundante".
 Analise o problema do usuário e forneça a solução exata baseada na lista abaixo.
 
 === BASE DE CONHECIMENTO TÉCNICO E SOLUÇÃO DE PROBLEMAS (TROUBLESHOOTING) ===
@@ -32,7 +32,7 @@ Analise o problema do usuário e forneça a solução exata baseada na lista aba
 
 4. **INSTALAÇÃO (PWA)**
    - **Sintoma:** "Como baixar o app?", "Não acho na loja".
-   - **Solução:** O MindRise é um Web App Progressivo (PWA). 
+   - **Solução:** O Rise Mindr é um Web App Progressivo (PWA). 
      - No Android (Chrome): Clique nos 3 pontinhos -> "Instalar aplicativo" ou "Adicionar à tela inicial".
      - No iOS (Safari): Clique no botão Compartilhar (quadrado com seta) -> Role para baixo -> "Adicionar à Tela de Início".
 
@@ -52,7 +52,7 @@ Analise o problema do usuário e forneça a solução exata baseada na lista aba
 
 8. **PRIVACIDADE E EXCLUSÃO**
    - **Sintoma:** "Quero apagar meus dados".
-   - **Solução:** Isso é um direito seu. Solicite via e-mail para privacy@mindrise.app ou abra um ticket aqui solicitando a exclusão completa.
+   - **Solução:** Isso é um direito seu. Solicite via e-mail para privacy@risemindr.app ou abra um ticket aqui solicitando a exclusão completa.
 
 === DIRETRIZES DE ATENDIMENTO ===
 - Se a resposta estiver acima, explique passo a passo, de forma amigável.
@@ -105,7 +105,7 @@ export const chatWithCoach = async (history: string[], message: string, userCont
 
         Usuário: ${message}`,
       config: {
-        systemInstruction: `Você é o "Mentor Mente Abundante", um coach virtual baseado no livro "Mente Abundante e Vencedora".
+        systemInstruction: `Você é o "Mentor Mente Abundante", um coach virtual especialista em Mentalidade de Alta Performance.
         Seus princípios são: Auto-responsabilidade, Mentalidade de Crescimento, Disciplina e Abundância.
         
         Responda de forma motivadora, direta e prática. Use emojis moderadamente.

@@ -69,13 +69,13 @@ const GratitudeJournal: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-10 animate-fade-in pb-10">
       
-      {/* Header - Tema Abundância */}
-      <div className="text-center space-y-2">
-        <h2 className="text-4xl font-extrabold text-slate-800 flex items-center justify-center gap-2">
-          <Heart className="text-[#F87A14] fill-[#F87A14]" size={36} />
+      {/* Header Padronizado */}
+      <div className="text-center space-y-3 px-2">
+        <h2 className="text-2xl md:text-3xl font-extrabold text-[#F87A14] flex items-center justify-center gap-2">
+          <Heart className="text-[#F87A14] fill-[#F87A14]" size={28} />
           {t('gratitude.title')}
         </h2>
-        <p className="text-slate-500 max-w-lg mx-auto">
+        <p className="text-slate-500 text-base leading-relaxed max-w-lg mx-auto">
           {t('gratitude.subtitle')}
         </p>
       </div>

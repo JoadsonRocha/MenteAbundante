@@ -29,7 +29,7 @@ const SupportAgent: React.FC = () => {
   const resetChat = () => {
     setMessages([{
       role: 'model',
-      text: 'Olá! Sou o Assistente Técnico MindRise. Posso ajudar com dúvidas sobre sua conta, funcionalidades do app ou problemas técnicos. Como posso ajudar hoje?'
+      text: 'Olá! Sou o Assistente Técnico Rise Mindr. Posso ajudar com dúvidas sobre sua conta, funcionalidades do app ou problemas técnicos. Como posso ajudar hoje?'
     }]);
   };
 

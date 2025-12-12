@@ -1,3 +1,4 @@
-// Este arquivo foi criado incorretamente e substituído pelo App.tsx na raiz.
-// Mantendo vazio para evitar erros de compilação caso o arquivo persista.
-export default function App() { return null; }
+// This file was created by mistake and is deprecated.
+// The real App entry point is at the project root (App.tsx).
+// Keeping this file empty/neutral to prevent build errors if referenced.
+export default function Placeholder() { return null; }

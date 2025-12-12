@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Brain, Calendar, CheckSquare, Eye, MessageSquareText, Menu, X, Info, LogOut, TrendingUp, Settings, Heart, Download, MessageSquarePlus, Rocket, Headset, Wind } from 'lucide-react';
+import { LayoutDashboard, Info, TrendingUp, Settings, Download, MessageSquarePlus, Headset, X, UserCircle, LogIn } from 'lucide-react';
 import { Tab } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -17,7 +17,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, toggleSidebar, onOpenTour, installApp }) => {
-  const { signOut, user } = useAuth();
+  const { user } = useAuth();
   const { t } = useLanguage();
   const [profileName, setProfileName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -50,33 +50,31 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
     };
   }, [user, activeTab]); 
 
+  // Menu ultra limpo: Dashboard + Utilitários
   const menuItems: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: t('menu.dashboard'), icon: <LayoutDashboard size={20} /> },
-    { id: 'smart_planner', label: t('menu.planner'), icon: <Rocket size={20} /> },
-    { id: 'coach', label: t('menu.coach'), icon: <MessageSquareText size={20} /> },
-    { id: 'reprogram', label: t('menu.reprogram'), icon: <Brain size={20} /> },
-    { id: 'anxiety', label: t('menu.anxiety'), icon: <Wind size={20} /> },
-    { id: 'plan', label: t('menu.plan7'), icon: <Calendar size={20} /> },
-    { id: 'checklist', label: t('menu.checklist'), icon: <CheckSquare size={20} /> },
-    { id: 'gratitude', label: t('menu.gratitude'), icon: <Heart size={20} /> },
-    { id: 'visualization', label: t('menu.visualization'), icon: <Eye size={20} /> },
     { id: 'stats', label: t('menu.stats'), icon: <TrendingUp size={20} /> },
     { id: 'feedback', label: t('menu.feedback'), icon: <MessageSquarePlus size={20} /> },
     { id: 'support', label: t('menu.support'), icon: <Headset size={20} /> },
     { id: 'about', label: t('menu.about'), icon: <Info size={20} /> },
   ];
 
-  const handleLogout = async () => {
-    await signOut();
-  };
-
-  const displayName = profileName || user?.email?.split('@')[0];
-  const displayInitial = profileName ? profileName.charAt(0).toUpperCase() : user?.email?.charAt(0).toUpperCase();
+  const displayName = user 
+    ? (profileName || user.email?.split('@')[0]) 
+    : "Visitante";
+    
+  const displayInitial = user 
+    ? (profileName ? profileName.charAt(0).toUpperCase() : user.email?.charAt(0).toUpperCase())
+    : "V";
   
   const hasMantra = !!mantra;
-  const displayMantra = mantra || "Sua Frase de Poder";
+  const displayMantra = user 
+    ? (mantra || "Sua Frase de Poder") 
+    : "Fazer Login para salvar dados";
 
   const handleProfileClick = () => {
+    // Se for visitante, o App.tsx intercepta 'profile' e mostra o login.
+    // Se for usuário, vai para o perfil.
     setActiveTab('profile');
     if (window.innerWidth < 1024) toggleSidebar();
   };
@@ -149,31 +147,29 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left group border ${activeTab === 'profile' ? 'bg-white border-orange-200 ring-2 ring-orange-100 shadow-md' : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200 hover:shadow-sm'}`}
           >
              <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden shrink-0 border-2 border-white shadow-sm relative">
-                {avatarUrl ? (
+                {user && avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-sm font-bold text-slate-600">{displayInitial}</span>
+                  <span className="text-sm font-bold text-slate-600">
+                    {user ? displayInitial : <UserCircle size={24} className="text-slate-400" />}
+                  </span>
                 )}
-                <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                   <Settings size={14} className="text-white" />
-                </div>
+                {user && (
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                     <Settings size={14} className="text-white" />
+                  </div>
+                )}
              </div>
              <div className="flex-1 overflow-hidden">
                 <p className="text-sm font-bold text-slate-700 truncate group-hover:text-[#F87A14] transition-colors" title={displayName || ''}>
                   {displayName}
                 </p>
-                <p className={`text-[10px] truncate ${hasMantra ? 'text-[#F87A14] font-medium italic' : 'text-slate-400'}`} title={displayMantra}>
-                  {hasMantra ? `"${displayMantra}"` : displayMantra}
+                <p className={`text-[10px] truncate ${hasMantra && user ? 'text-[#F87A14] font-medium italic' : 'text-slate-400'}`} title={displayMantra}>
+                  {hasMantra && user ? `"${displayMantra}"` : (
+                    <span className="flex items-center gap-1 text-emerald-600 font-bold"><LogIn size={10} /> Entrar</span>
+                  )}
                 </p>
              </div>
-          </button>
-          
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors text-xs font-medium justify-center"
-          >
-            <LogOut size={14} />
-            <span>{t('menu.logout')}</span>
           </button>
         </div>
       </div>

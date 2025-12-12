@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Unlock, CheckCircle, Loader2, Save, Edit2, Sparkles, RefreshCw, Trophy, Clock, ArrowRightCircle } from 'lucide-react';
+import { Lock, Unlock, CheckCircle, Loader2, Save, Edit2, Clock, ArrowRightCircle, Calendar } from 'lucide-react';
 import { DayPlan, Tab } from '../types';
 import { db } from '../services/database';
 import { analyzePlanAction } from '../services/geminiService';
@@ -12,7 +12,7 @@ interface SevenDayPlanProps {
 const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
   const [plan, setPlan] = useState<DayPlan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processingDay, setProcessingDay] = useState<number | null>(null); // Estado de loading da IA
+  const [processingDay, setProcessingDay] = useState<number | null>(null);
   const [editingDay, setEditingDay] = useState<number | null>(null);
 
   useEffect(() => {
@@ -66,17 +66,6 @@ const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
     }
   };
 
-  const resetCycle = async () => {
-    if (confirm("Tem certeza que deseja reiniciar o ciclo de 7 dias? Suas respostas atuais serão arquivadas e o plano será limpo.")) {
-      setLoading(true);
-      const resetPlan = SEVEN_DAY_PLAN.map(d => ({ ...d, completed: false, answer: '', ai_feedback: '', completed_at: undefined }));
-      setPlan(resetPlan);
-      await db.savePlan(resetPlan);
-      setLoading(false);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
   const enableEdit = (dayNum: number) => {
     setEditingDay(dayNum);
   };
@@ -89,25 +78,30 @@ const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
     );
   }
 
-  const allCompleted = plan.every(d => d.completed);
   const completedCount = plan.filter(d => d.completed).length;
   const progress = Math.round((completedCount / 7) * 100);
 
   return (
     <div className="max-w-4xl mx-auto pb-10 animate-fade-in">
-      <div className="text-center mb-10">
-        <h2 className="text-4xl font-extrabold text-[#F87A14] mb-2">Plano de Ação 7 Dias</h2>
-        <p className="text-slate-500 mb-4">Operação Destravar: Construa sua nova mentalidade passo a passo.</p>
+      
+      {/* Header Padronizado */}
+      <div className="text-center space-y-3 px-2 mb-10">
+        <h2 className="text-2xl md:text-3xl font-extrabold text-[#F87A14] flex items-center justify-center gap-2">
+           <Calendar className="text-[#F87A14]" size={28} /> Plano de Ação 7 Dias
+        </h2>
+        <p className="text-slate-500 text-base leading-relaxed max-w-lg mx-auto">
+          Operação Destravar: Construa sua nova mentalidade passo a passo.
+        </p>
         
         {/* Barra de Progresso Geral */}
-        <div className="max-w-md mx-auto flex items-center gap-3">
-          <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="max-w-md mx-auto flex items-center gap-3 mt-4">
+          <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
              <div 
                className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-1000" 
                style={{ width: `${progress}%` }}
              ></div>
           </div>
-          <span className="text-xs font-bold text-slate-400">{progress}%</span>
+          <span className="text-sm font-bold text-slate-400">{progress}%</span>
         </div>
       </div>
 
@@ -139,8 +133,6 @@ const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
                     waitMode = true;
                  }
               } else {
-                 // Fallback para dados antigos sem data: se não tem data, assume que completou hoje para forçar ritmo
-                 // OU pode assumir desbloqueado. Assumindo desbloqueado para legado para não travar users antigos
                  isLocked = false; 
               }
             }
@@ -176,7 +168,7 @@ const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
                   >
                     {/* Header do Card */}
                     <div className={`flex items-center gap-2 mb-3 ${!isLeft && 'md:flex-row-reverse'}`}>
-                      <span className={`text-xs font-bold px-2 py-1 rounded uppercase tracking-wider ${
+                      <span className={`text-[10px] md:text-xs font-bold px-2 py-1 rounded uppercase tracking-wider ${
                         day.completed ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
                       }`}>
                         Dia {day.day}
@@ -193,10 +185,12 @@ const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
                       ) : <Unlock size={14} className="text-[#F87A14]" />}
                     </div>
                     
-                    <h3 className={`text-xl font-bold mb-2 ${day.completed ? 'text-emerald-800' : 'text-slate-800'}`}>
+                    {/* Title with Mobile Font Size (18px = text-lg) */}
+                    <h3 className={`text-lg md:text-xl font-bold mb-2 leading-tight ${day.completed ? 'text-emerald-800' : 'text-slate-800'}`}>
                       {day.title}
                     </h3>
-                    <p className="text-slate-600 text-sm leading-relaxed mb-4">
+                    {/* Description with Mobile Font Size (16px = text-base) */}
+                    <p className="text-slate-600 text-base leading-relaxed mb-4">
                       {day.description}
                     </p>
                     
@@ -224,13 +218,14 @@ const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
                     {!isLocked && (
                       <div className="mt-4 pt-4 border-t border-slate-100">
                         {showInput ? (
-                          <div className="space-y-3 animate-fade-in">
+                          <div className="space-y-4 animate-fade-in">
                             <textarea
                               value={day.answer || ''}
                               onChange={(e) => handleInputChange(day.day, e.target.value)}
                               disabled={isProcessing}
                               placeholder="Escreva sua resposta ou reflexão aqui..."
-                              className={`w-full p-3 rounded-xl border text-sm outline-none focus:ring-2 transition-all resize-none h-24 ${
+                              // text-base para evitar zoom
+                              className={`w-full p-4 rounded-xl border text-base outline-none focus:ring-2 transition-all resize-none h-32 leading-relaxed ${
                                 !isLeft ? 'md:text-right' : 'text-left'
                               } ${day.completed ? 'border-emerald-200 focus:ring-emerald-200' : 'border-slate-200 focus:border-[#F87A14] focus:ring-orange-200'}`}
                             />
@@ -238,7 +233,7 @@ const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
                               <button
                                 onClick={() => saveDay(day.day)}
                                 disabled={!day.answer?.trim() || isProcessing}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
+                                className={`px-5 py-3 rounded-xl text-base font-bold flex items-center gap-2 transition-all ${
                                   !day.answer?.trim() || isProcessing
                                     ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                     : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5'
@@ -246,11 +241,11 @@ const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
                               >
                                 {isProcessing ? (
                                   <>
-                                    <Loader2 size={16} className="animate-spin" /> Analisando...
+                                    <Loader2 size={18} className="animate-spin" /> Analisando...
                                   </>
                                 ) : (
                                   <>
-                                    <Save size={16} />
+                                    <Save size={18} />
                                     {day.completed ? 'Atualizar' : 'Concluir Dia'}
                                   </>
                                 )}
@@ -261,70 +256,40 @@ const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
                           <div className="space-y-4 animate-fade-in">
                              {/* Resposta do Usuário */}
                              <div className="group relative">
-                                <div className={`p-4 rounded-xl text-sm italic border ${
+                                <div className={`p-4 rounded-xl text-base italic border ${
                                    !isLeft ? 'md:text-right' : 'text-left'
-                                } bg-slate-50 border-slate-200 text-slate-600`}>
+                                } bg-slate-50 border-slate-200 text-slate-600 leading-relaxed`}>
                                   "{day.answer}"
                                 </div>
                                 <button
                                   onClick={() => enableEdit(day.day)}
-                                  className={`absolute -top-3 ${isLeft ? 'right-2' : 'left-2 md:right-auto md:left-2'} bg-white border border-slate-200 p-1.5 rounded-full text-slate-400 hover:text-[#F87A14] hover:border-orange-300 shadow-sm transition-all opacity-0 group-hover:opacity-100`}
+                                  className={`absolute -top-3 ${isLeft ? 'right-2' : 'left-2 md:right-auto md:left-2'} bg-white border border-slate-200 text-slate-400 p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-all hover:text-[#F87A14]`}
                                   title="Editar resposta"
                                 >
                                   <Edit2 size={14} />
                                 </button>
-                              </div>
+                             </div>
 
-                              {/* Feedback da IA */}
-                              {day.ai_feedback && (
-                                <div className={`relative p-4 rounded-xl border bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100 flex gap-3 ${!isLeft ? 'md:flex-row-reverse md:text-right' : 'flex-row text-left'}`}>
-                                  <div className="shrink-0 mt-0.5">
-                                    <Sparkles size={18} className="text-indigo-500" />
-                                  </div>
-                                  <div>
-                                    <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Insight do Mentor</p>
-                                    <p className="text-sm text-indigo-900 leading-relaxed font-medium">
-                                      {day.ai_feedback}
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
+                             {/* Feedback da IA */}
+                             {day.ai_feedback && (
+                               <div className={`p-4 rounded-xl text-sm bg-indigo-50 border border-indigo-100 text-indigo-800 leading-relaxed ${
+                                 !isLeft ? 'md:text-right' : 'text-left'
+                               }`}>
+                                 <span className="block text-xs font-bold text-indigo-500 uppercase mb-1">Feedback do Mentor</span>
+                                 {day.ai_feedback}
+                               </div>
+                             )}
                           </div>
                         )}
                       </div>
                     )}
                   </div>
                 </div>
-
-                {/* Empty spacer for alignment */}
-                <div className="hidden md:block w-[45%]"></div>
               </div>
             );
           })}
         </div>
       </div>
-
-      {/* Ciclo Completo - Reiniciar */}
-      {allCompleted && (
-        <div className="mt-16 text-center animate-bounce-in">
-           <div className="inline-block p-8 bg-gradient-to-br from-amber-100 to-orange-50 rounded-3xl border border-orange-200 shadow-xl max-w-lg w-full">
-              <div className="w-16 h-16 bg-[#F87A14] rounded-full flex items-center justify-center text-white mx-auto mb-4 shadow-lg shadow-orange-500/30">
-                 <Trophy size={32} />
-              </div>
-              <h3 className="text-2xl font-bold text-slate-800 mb-2">Ciclo de 7 Dias Concluído!</h3>
-              <p className="text-slate-600 mb-6">
-                Parabéns! Você completou sua primeira semana de transformação. A repetição é a mãe da habilidade. Deseja iniciar um novo ciclo para fortalecer ainda mais sua mente?
-              </p>
-              
-              <button 
-                onClick={resetCycle}
-                className="px-8 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all flex items-center justify-center gap-2 mx-auto"
-              >
-                <RefreshCw size={18} /> Iniciar Novo Ciclo
-              </button>
-           </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -127,14 +127,14 @@ const DailyChecklist: React.FC = () => {
   return (
     <div className="max-w-3xl mx-auto space-y-8 animate-fade-in pb-10">
       
-      {/* Header Minimalista */}
-      <div className="text-center md:text-left mb-8">
-        <h2 className="text-3xl font-extrabold text-[#F87A14]">{t('checklist.title')}</h2>
-        <div className="flex items-center justify-center md:justify-start gap-2 text-slate-500 mt-2">
+      {/* Header Padronizado */}
+      <div className="text-center space-y-3 px-2 mb-8">
+        <h2 className="text-2xl md:text-3xl font-extrabold text-[#F87A14]">{t('checklist.title')}</h2>
+        <div className="flex items-center justify-center gap-2 text-slate-500">
            <Calendar size={16} className="text-[#F87A14]" />
            <span className="text-sm capitalize font-medium">{dateString}</span>
         </div>
-        <p className="text-slate-400 text-sm mt-2 max-w-lg">
+        <p className="text-slate-500 text-base leading-relaxed max-w-lg mx-auto">
           {t('checklist.subtitle')}
         </p>
       </div>
@@ -174,10 +174,17 @@ const DailyChecklist: React.FC = () => {
                 </div>
               )}
 
-              {/* Loader IA */}
+              {/* Skeleton Loader IA (Visual Load State) */}
               {analyzingId === task.id && (
-                <div className="flex items-center gap-2 text-xs text-[#F87A14] animate-pulse pl-1">
-                  <Sparkles size={12} /> Gerando insight para você...
+                <div className="mt-2 bg-indigo-50/50 p-3 rounded-lg border border-indigo-100/50 animate-pulse">
+                   <div className="flex items-center gap-2 mb-2">
+                      <Sparkles size={14} className="text-indigo-300 shrink-0" />
+                      <div className="h-2.5 bg-indigo-200/70 rounded w-32"></div>
+                   </div>
+                   <div className="space-y-1.5 pl-6">
+                      <div className="h-2 bg-indigo-200/50 rounded w-full"></div>
+                      <div className="h-2 bg-indigo-200/50 rounded w-3/4"></div>
+                   </div>
                 </div>
               )}
 

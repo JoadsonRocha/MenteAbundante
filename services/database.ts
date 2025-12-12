@@ -23,7 +23,8 @@ export const supabase: SupabaseClient | null = hasSupabase
     }) 
   : null;
 
-const STORAGE_KEYS = {
+// EXPORTADO PARA USO NO AUTHCONTEXT (SEGURANÇA NO LOGOUT)
+export const STORAGE_KEYS = {
   TASKS: 'mente_tasks',
   PLAN: 'mente_plan',
   BELIEFS: 'mente_beliefs',
@@ -545,7 +546,13 @@ export const db = {
 
     if (supabase && navigator.onLine) {
       const userId = await getCurrentUserId();
-      await supabase.from('goal_plans').delete().eq('id', id).eq('user_id', userId);
+      if (userId) {
+         const { error } = await supabase.from('goal_plans').delete().eq('id', id).eq('user_id', userId);
+         if (error) {
+           console.error("Erro ao deletar plano no Supabase:", error);
+           // Não lançamos erro aqui para não quebrar a UX local, já que é offline-first
+         }
+      }
     }
   },
 
