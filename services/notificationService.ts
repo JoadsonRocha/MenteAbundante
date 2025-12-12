@@ -61,7 +61,6 @@ export const initOneSignal = async (userId?: string) => {
                  console.log("OneSignal já estava inicializado.");
                  isInitialized = true;
               } else {
-                 // Outros erros de init devem ser logados mas não devem quebrar o app
                  console.warn("Aviso na inicialização do OneSignal:", initErr);
               }
             }
@@ -80,25 +79,30 @@ export const initOneSignal = async (userId?: string) => {
             }
           }
 
-          // Adiciona um listener para quando a inscrição mudar
+          // Adiciona um listener para quando a inscrição mudar - COM VERIFICAÇÃO ROBUSTA
           try {
-              if (window.OneSignal.User && window.OneSignal.User.PushSubscription && typeof window.OneSignal.User.PushSubscription.addEventListener === 'function') {
+              // Verifica profundamente a existência do objeto antes de tentar acessar addEventListener
+              if (
+                 window.OneSignal.User && 
+                 window.OneSignal.User.PushSubscription && 
+                 typeof window.OneSignal.User.PushSubscription.addEventListener === 'function'
+              ) {
                 window.OneSignal.User.PushSubscription.addEventListener("change", async (event: any) => {
-                    if (event.current.optedIn) {
+                    if (event && event.current && event.current.optedIn) {
                         await syncOneSignalIdToSupabase();
                     }
                 });
               }
           } catch (listenerErr) {
-              console.warn("Erro ao adicionar listener OneSignal:", listenerErr);
+              // Silencia erros de listener para não poluir o console do usuário
+              // console.warn("Erro ao adicionar listener OneSignal:", listenerErr);
           }
       } catch (innerErr: any) {
-          // Captura erros internos do SDK (como o erro 'reading tt')
+          // Captura erros internos do SDK
           console.warn("Erro interno na execução do OneSignal:", innerErr);
       }
     });
   } catch (error: any) {
-    // Erros gerais de chamada
     const errorMsg = error?.message || error?.toString() || '';
     if (errorMsg.includes('already initialized')) {
        return;
@@ -113,36 +117,26 @@ export const initOneSignal = async (userId?: string) => {
  */
 export const syncOneSignalIdToSupabase = async () => {
     if (!supabase) return;
-    const dbClient = supabase; // Captura a instância não-nula para uso no callback
+    const dbClient = supabase;
 
     try {
-        // Aguarda o SDK estar pronto
         window.OneSignal.push(async () => {
             try {
-                // Verifica se o User module está disponível antes de acessar (evita erro se init falhar)
                 if (!window.OneSignal.User || !window.OneSignal.User.PushSubscription) {
                     return; 
                 }
 
-                // Pega o ID de inscrição (Player ID)
                 const subscriptionId = window.OneSignal.User.PushSubscription.id;
                 
-                // Só envia se tivermos um ID válido e o usuário tiver permitido notificações
                 if (subscriptionId && window.OneSignal.User.PushSubscription.optedIn) {
-                    console.log("Sincronizando OneSignal ID:", subscriptionId);
+                    // console.log("Sincronizando OneSignal ID:", subscriptionId);
                     
-                    // Chama a função RPC que criamos no SQL
                     const { error } = await dbClient.rpc('sync_onesignal_id', { 
                         p_player_id: subscriptionId 
                     });
 
-                    if (error) {
-                        // Ignora erros de função não encontrada caso o backend ainda não tenha sido atualizado
-                        if (!error.message?.includes('function not found')) {
-                           console.error("Erro ao salvar ID no Supabase:", error);
-                        }
-                    } else {
-                        console.log("OneSignal ID sincronizado com sucesso.");
+                    if (error && !error.message?.includes('function not found')) {
+                       console.error("Erro ao salvar ID no Supabase:", error);
                     }
                 }
             } catch (syncErr) {
@@ -150,7 +144,6 @@ export const syncOneSignalIdToSupabase = async () => {
             }
         });
     } catch (e) {
-        // Silencia erros de sincronização para não atrapalhar a UX
         console.warn("Falha na sincronização do OneSignal (Background):", e);
     }
 };
@@ -179,7 +172,6 @@ export const getOneSignalPlayerId = async (): Promise<string | null> => {
 };
 
 export const requestNotificationPermission = async () => {
-    // Função helper caso queira pedir permissão manualmente via botão
     if (typeof window !== 'undefined' && window.OneSignal) {
         try {
             await window.OneSignal.Slidedown.promptPush();
@@ -192,13 +184,16 @@ export const requestNotificationPermission = async () => {
 export const isPushEnabled = async (): Promise<boolean> => {
     if (typeof window === 'undefined' || !window.OneSignal) return false;
     try {
-       // Verificação segura
-       // Como o push é assíncrono, não podemos garantir retorno imediato aqui sem Promisify,
-       // mas se OneSignal já carregou, o objeto User deve estar disponível.
-       if (window.OneSignal.User && window.OneSignal.User.PushSubscription) {
-           return window.OneSignal.User.PushSubscription.optedIn || false;
-       }
-       return false;
+       let enabled = false;
+       await new Promise<void>((resolve) => {
+         window.OneSignal.push(() => {
+             if (window.OneSignal.User && window.OneSignal.User.PushSubscription) {
+                 enabled = window.OneSignal.User.PushSubscription.optedIn || false;
+             }
+             resolve();
+         });
+       });
+       return enabled;
     } catch(e) {
        return false;
     }
