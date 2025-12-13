@@ -5,10 +5,10 @@ const CACHE_NAME = 'mindrise-v5-store-ready';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/manifest.json'
-  // Imagens removidas temporariamente para evitar erro de instalação se não existirem no servidor
-  // '/MindShift_192.png',
-  // '/MindShift_512.png'
+  '/manifest.json',
+  '/logo.svg',
+  '/MindShift_192.png',
+  '/MindShift_512.png'
 ];
 
 // Instalação
