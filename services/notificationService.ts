@@ -69,13 +69,21 @@ export const initOneSignal = async (userId?: string) => {
           // Se tivermos um userId (usuário logado), fazemos o Login no OneSignal
           if (userId) {
             try {
-                // Isso vincula o dispositivo atual ao usuário do Supabase no painel do OneSignal
-                await window.OneSignal.login(userId);
+                // Verificação de segurança para evitar chamadas redundantes que podem causar erros internos ('tt')
+                const currentExternalId = window.OneSignal.User?.externalId;
                 
-                // Após logar, tentamos sincronizar o Player ID com o Supabase
-                await syncOneSignalIdToSupabase();
+                if (currentExternalId === userId) {
+                    // Já está logado com este ID, apenas sincroniza se necessário
+                    await syncOneSignalIdToSupabase();
+                } else {
+                    // Isso vincula o dispositivo atual ao usuário do Supabase no painel do OneSignal
+                    await window.OneSignal.login(userId);
+                    
+                    // Após logar, tentamos sincronizar o Player ID com o Supabase
+                    await syncOneSignalIdToSupabase();
+                }
             } catch (loginErr) {
-                console.warn("Erro ao logar no OneSignal:", loginErr);
+                console.warn("Erro ao logar no OneSignal (Login):", loginErr);
             }
           }
 
@@ -87,6 +95,8 @@ export const initOneSignal = async (userId?: string) => {
                  window.OneSignal.User.PushSubscription && 
                  typeof window.OneSignal.User.PushSubscription.addEventListener === 'function'
               ) {
+                // Removemos listeners antigos se possível (não exposto na API JS simples) ou apenas adicionamos
+                // A API v16 gerencia bem múltiplos listeners, mas o try-catch evita quebrar a app
                 window.OneSignal.User.PushSubscription.addEventListener("change", async (event: any) => {
                     if (event && event.current && event.current.optedIn) {
                         await syncOneSignalIdToSupabase();
@@ -95,7 +105,6 @@ export const initOneSignal = async (userId?: string) => {
               }
           } catch (listenerErr) {
               // Silencia erros de listener para não poluir o console do usuário
-              // console.warn("Erro ao adicionar listener OneSignal:", listenerErr);
           }
       } catch (innerErr: any) {
           // Captura erros internos do SDK
@@ -108,6 +117,32 @@ export const initOneSignal = async (userId?: string) => {
        return;
     }
     console.error("Erro geral no OneSignal:", error);
+  }
+};
+
+/**
+ * Realiza o logout do usuário no OneSignal, dissociando o dispositivo do External ID.
+ * Deve ser chamado ao fazer logout na aplicação.
+ */
+export const logoutOneSignal = async () => {
+  if (typeof window === 'undefined') return;
+
+  window.OneSignal = window.OneSignal || [];
+  
+  try {
+    window.OneSignal.push(async () => {
+      try {
+        // Verifica se há um usuário logado antes de tentar deslogar para evitar erros
+        if (window.OneSignal.User && window.OneSignal.User.externalId) {
+            await window.OneSignal.logout();
+            // console.log("OneSignal logout realizado com sucesso.");
+        }
+      } catch (e) {
+        console.warn("Erro ao deslogar do OneSignal:", e);
+      }
+    });
+  } catch (e) {
+    console.warn("Erro ao acessar OneSignal para logout:", e);
   }
 };
 

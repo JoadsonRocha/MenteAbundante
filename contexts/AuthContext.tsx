@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, STORAGE_KEYS } from '../services/database';
+import { logoutOneSignal } from '../services/notificationService';
 
 interface AuthContextType {
   user: User | null;
@@ -98,6 +99,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
     }
     
+    // OneSignal Logout - Dissocia o dispositivo do usuário atual
+    await logoutOneSignal();
+
     // Limpeza completa de dados locais para garantir segurança ao sair
     clearLocalData();
     
