@@ -90,7 +90,13 @@ export const syncLocalDataToSupabase = async () => {
     const localLogs = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITY) || '[]');
     if (localLogs.length > 0) {
        for (const log of localLogs) {
-         const { data } = await supabase.from('activity_logs').select('*').eq('user_id', userId).eq('date', log.date).single();
+         // CORREÇÃO: Usar maybeSingle() para evitar erro 406 se não existir
+         const { data } = await supabase.from('activity_logs')
+           .select('*')
+           .eq('user_id', userId)
+           .eq('date', log.date)
+           .maybeSingle();
+
          if (data) {
            await supabase.from('activity_logs').update({ count: log.count }).eq('id', data.id);
          } else {
@@ -267,7 +273,13 @@ export const db = {
         try {
           const userId = await getCurrentUserId();
           if (userId) {
-            const { data } = await supabase.from('activity_logs').select('*').eq('user_id', userId).eq('date', today).single();
+            // CORREÇÃO: Usar maybeSingle() para evitar erro 406
+            const { data } = await supabase.from('activity_logs')
+              .select('*')
+              .eq('user_id', userId)
+              .eq('date', today)
+              .maybeSingle();
+
             if (data) {
               await supabase.from('activity_logs').update({ count: count }).eq('id', data.id);
             } else {
@@ -550,7 +562,6 @@ export const db = {
          const { error } = await supabase.from('goal_plans').delete().eq('id', id).eq('user_id', userId);
          if (error) {
            console.error("Erro ao deletar plano no Supabase:", error);
-           // Não lançamos erro aqui para não quebrar a UX local, já que é offline-first
          }
       }
     }
