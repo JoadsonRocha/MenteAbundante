@@ -32,7 +32,12 @@ export const initOneSignal = async (userId?: string) => {
               await window.OneSignal.init({
                 appId: appId, 
                 
-                // Configurações para PWA e Localhost
+                // --- CONFIGURAÇÃO PWA CRUCIAL ---
+                // Força o OneSignal a usar o nosso worker combinado em vez de tentar registrar um novo
+                serviceWorkerPath: 'OneSignalSDKWorker.js', 
+                serviceWorkerParam: { scope: '/' },
+                // ---------------------------------
+
                 allowLocalhostAsSecureOrigin: true,
                 notifyButton: {
                     enable: true, // Botão de sino flutuante (opcional)

@@ -32,6 +32,7 @@ const UserProfileComponent: React.FC = () => {
   useEffect(() => {
     const loadProfile = async () => {
       try {
+        // 1. Carrega dados vitais do banco (PERFIL)
         const data = await db.getProfile();
         if (data) {
           setProfile(data);
@@ -44,16 +45,22 @@ const UserProfileComponent: React.FC = () => {
             statement: ''
           });
         }
-        
-        // Tenta pegar o ID do OneSignal
-        const pid = await getOneSignalPlayerId();
-        setPlayerId(pid);
       } catch (e) {
         console.error("Erro ao carregar perfil", e);
       } finally {
+        // 2. Libera a UI IMEDIATAMENTE após carregar dados do banco
         setLoading(false);
       }
+
+      // 3. Carrega OneSignal em "background" sem travar a tela
+      try {
+        const pid = await getOneSignalPlayerId();
+        setPlayerId(pid);
+      } catch (e) {
+        console.warn("OneSignal ID indisponível no momento");
+      }
     };
+    
     loadProfile();
   }, [user]);
 
