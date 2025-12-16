@@ -69,8 +69,22 @@ export const initOneSignal = async (userId?: string) => {
           // Se tivermos um userId (usuário logado), fazemos o Login no OneSignal
           if (userId) {
             try {
+                // Ensure User object exists before accessing or logging in
+                if (!window.OneSignal.User) {
+                   // Se User não existe, talvez o init falhou silenciosamente ou está em versão antiga.
+                   // Tentamos login direto se a função existir, ou abortamos.
+                   if (typeof window.OneSignal.login === 'function') {
+                      await window.OneSignal.login(userId);
+                      await syncOneSignalIdToSupabase();
+                      return;
+                   } else {
+                      console.warn("OneSignal User object missing, skipping login.");
+                      return;
+                   }
+                }
+
                 // Verificação de segurança para evitar chamadas redundantes que podem causar erros internos ('tt')
-                const currentExternalId = window.OneSignal.User?.externalId;
+                const currentExternalId = window.OneSignal.User.externalId;
                 
                 if (currentExternalId === userId) {
                     // Já está logado com este ID, apenas sincroniza se necessário

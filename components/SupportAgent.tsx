@@ -3,8 +3,10 @@ import { Headset, Send, MessageSquare, AlertCircle, Phone, Mail, CheckCircle2, B
 import { chatWithSupportAgent } from '../services/geminiService';
 import { db, generateUUID } from '../services/database';
 import { ChatMessage, SupportTicket } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const SupportAgent: React.FC = () => {
+  const { t, language } = useLanguage();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -24,12 +26,18 @@ const SupportAgent: React.FC = () => {
     resetChat();
 
     loadTickets();
-  }, []);
+  }, [language]); // Reinicia se mudar idioma
   
   const resetChat = () => {
+    const welcome = language === 'pt' 
+      ? 'Olá! Sou o Assistente Técnico Rise Mindr. Posso ajudar com dúvidas sobre sua conta, funcionalidades do app ou problemas técnicos. Como posso ajudar hoje?'
+      : language === 'es'
+      ? '¡Hola! Soy el Asistente Técnico Rise Mindr. Puedo ayudar con dudas sobre tu cuenta, funcionalidades de la app o problemas técnicos. ¿Cómo puedo ayudarte hoy?'
+      : 'Hello! I am the Rise Mindr Tech Assistant. I can help with account questions, app features, or technical issues. How can I help today?';
+
     setMessages([{
       role: 'model',
-      text: 'Olá! Sou o Assistente Técnico Rise Mindr. Posso ajudar com dúvidas sobre sua conta, funcionalidades do app ou problemas técnicos. Como posso ajudar hoje?'
+      text: welcome
     }]);
   };
 
@@ -55,12 +63,18 @@ const SupportAgent: React.FC = () => {
     // Contexto das últimas mensagens
     const contextHistory = messages.slice(-6).map(m => `${m.role === 'user' ? 'Cliente' : 'Agente'}: ${m.text}`);
 
-    const responseText = await chatWithSupportAgent(contextHistory, userText);
+    const responseText = await chatWithSupportAgent(contextHistory, userText, language);
     
     // Verifica se a IA sugeriu escalonamento
     if (responseText.includes('[ESCALATE]')) {
        const cleanText = responseText.replace('[ESCALATE]', '').trim();
-       setMessages(prev => [...prev, { role: 'model', text: cleanText || "Entendi sua frustração. Para resolver isso da melhor forma, vou precisar abrir um chamado para nossa equipe humana." }]);
+       const defaultEscalateMsg = language === 'pt' 
+         ? "Entendi sua frustração. Para resolver isso da melhor forma, vou precisar abrir um chamado para nossa equipe humana."
+         : language === 'es'
+         ? "Entiendo tu frustración. Para resolver esto de la mejor manera, necesitaré abrir un ticket para nuestro equipo humano."
+         : "I understand your frustration. To resolve this properly, I'll need to open a ticket for our human team.";
+
+       setMessages(prev => [...prev, { role: 'model', text: cleanText || defaultEscalateMsg }]);
        setTicketMode(true);
        setTicketSubject(userText); // Sugere o último input como assunto
     } else {
@@ -93,7 +107,7 @@ const SupportAgent: React.FC = () => {
     const userMessages = messages.filter(m => m.role === 'user');
     
     if (userMessages.length === 0) {
-      if (confirm("Deseja reiniciar a conversa?")) resetChat();
+      if (confirm(t('support.subtitle'))) resetChat(); // Usando uma string qualquer traduzida apenas para confirmar
       return;
     }
 
@@ -121,7 +135,8 @@ const SupportAgent: React.FC = () => {
         await loadTickets();
 
         // Reinicia o chat
-        setMessages([{ role: 'model', text: 'Atendimento salvo no histórico. Como posso ajudar em algo novo?' }]);
+        const savedMsg = language === 'pt' ? 'Atendimento salvo no histórico.' : language === 'es' ? 'Atención guardada en el historial.' : 'Support session saved to history.';
+        setMessages([{ role: 'model', text: savedMsg }]);
       } catch (error) {
         console.error("Erro ao salvar atendimento", error);
         alert("Erro ao salvar. Verifique sua conexão.");
@@ -179,7 +194,7 @@ const SupportAgent: React.FC = () => {
       <div className="hidden md:block w-1/3 space-y-4">
          <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-lg">
             <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
-              <Headset size={24} className="text-[#F87A14]" /> Suporte
+              <Headset size={24} className="text-[#F87A14]" /> {t('support.title')}
             </h2>
             <p className="text-slate-300 text-sm mb-6">
               Nosso agente inteligente resolve 80% dos problemas instantaneamente. Se precisar, escalonamos para um humano.
@@ -254,8 +269,8 @@ const SupportAgent: React.FC = () => {
                <Headset size={20} className="text-[#F87A14]" />
              </div>
              <div>
-                <span className="font-bold block leading-tight">Suporte Técnico</span>
-                <span className="text-[10px] text-slate-400 block">Assistente Inteligente</span>
+                <span className="font-bold block leading-tight">{t('support.title')}</span>
+                <span className="text-[10px] text-slate-400 block">{t('support.subtitle')}</span>
              </div>
            </div>
            
@@ -370,7 +385,7 @@ const SupportAgent: React.FC = () => {
                  onKeyDown={(e) => {
                    if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
                  }}
-                 placeholder="Descreva seu problema..."
+                 placeholder={t('support.placeholder')}
                  className="flex-1 bg-transparent border-none outline-none resize-none max-h-32 min-h-[44px] py-2.5 px-2 text-slate-700 placeholder:text-slate-400"
                  rows={1}
                />

@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#EA580C">
     <!-- Padrão moderno Android/Chrome -->
     <meta name="mobile-web-app-capable" content="yes">
-    <!-- Legado iOS (mantido para compatibilidade, mas o erro do console se refere à falta do de cima) -->
+    <!-- Legado iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Rise Mindr">
@@ -19,10 +19,8 @@
     <!-- OneSignal SDK -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 
-    <!-- Custom SVG Favicon (Browser Tab) - Apontando para o arquivo físico agora -->
+    <!-- Custom SVG Favicon -->
     <link rel="icon" type="image/svg+xml" href="/logo.svg">
-    
-    <!-- Apple Touch Icon (iOS Home Screen - Using PNG for better quality) -->
     <link rel="apple-touch-icon" href="/MindShift_192.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -31,6 +29,8 @@
       body {
         font-family: 'Inter', sans-serif;
         background-color: #f8fafc;
+        margin: 0;
+        padding: 0;
       }
       /* Custom Scrollbar */
       ::-webkit-scrollbar {
@@ -45,6 +45,29 @@
       }
       ::-webkit-scrollbar-thumb:hover {
         background: #94a3b8; 
+      }
+
+      /* Initial Loading Spinner Styles (Inline critical CSS) */
+      #root:empty {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f8fafc;
+      }
+      .initial-loader {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #e2e8f0;
+        border-bottom-color: #EA580C;
+        border-radius: 50%;
+        display: inline-block;
+        box-sizing: border-box;
+        animation: rotation 1s linear infinite;
+      }
+      @keyframes rotation {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
     </style>
   <script type="importmap">
@@ -66,7 +89,10 @@
 <link rel="stylesheet" href="/index.css">
 </head>
   <body>
-    <div id="root"></div>
+    <!-- Initial Loader visível antes do React montar -->
+    <div id="root">
+      <div class="initial-loader"></div>
+    </div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

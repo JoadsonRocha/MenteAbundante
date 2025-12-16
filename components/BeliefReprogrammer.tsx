@@ -6,7 +6,7 @@ import { db } from '../services/database';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const BeliefReprogrammer: React.FC = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [belief, setBelief] = useState('');
   const [result, setResult] = useState('');
   const [loadingAI, setLoadingAI] = useState(false);
@@ -21,7 +21,7 @@ const BeliefReprogrammer: React.FC = () => {
     if (!belief.trim()) return;
     setLoadingAI(true);
     try {
-      const response = await reframeBelief(belief);
+      const response = await reframeBelief(belief, language);
       setResult(response);
     } catch (e) {
       setResult("Erro ao conectar. Tente novamente.");

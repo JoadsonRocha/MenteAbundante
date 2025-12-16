@@ -3,8 +3,10 @@ import { Send, Bot, User, Trash2, Sparkles, MoreHorizontal } from 'lucide-react'
 import { chatWithCoach } from '../services/geminiService';
 import { db } from '../services/database';
 import { ChatMessage } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const AICoach: React.FC = () => {
+  const { t, language } = useLanguage();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -19,14 +21,20 @@ const AICoach: React.FC = () => {
         setMessages(history);
       } else {
         // Mensagem de boas-vindas padrão se não houver histórico
+        const welcomeMsg = language === 'pt' 
+          ? 'Olá! Sou seu Mentor Rise Mindr. Em que posso te ajudar hoje? Podemos falar sobre disciplina, medos ou estratégias para vencer.'
+          : language === 'es' 
+          ? '¡Hola! Soy tu Mentor Rise Mindr. ¿En qué puedo ayudarte hoy? Podemos hablar de disciplina, miedos o estrategias para ganar.'
+          : 'Hello! I am your Rise Mindr Mentor. How can I help you today? We can talk about discipline, fears, or winning strategies.';
+
         setMessages([{ 
           role: 'model', 
-          text: 'Olá! Sou seu Mentor Rise Mindr. Em que posso te ajudar hoje? Podemos falar sobre disciplina, medos ou estratégias para vencer.' 
+          text: welcomeMsg
         }]);
       }
     };
     loadHistory();
-  }, []);
+  }, [language]);
 
   // Auto-scroll sempre que mensagens mudarem ou loading iniciar
   useEffect(() => {
@@ -64,10 +72,10 @@ const AICoach: React.FC = () => {
     // ----------------------------------------------
 
     // Contexto das últimas 10 mensagens
-    const contextHistory = messages.slice(-10).map(m => `${m.role === 'user' ? 'Usuário' : 'Mentor'}: ${m.text}`);
+    const contextHistory = messages.slice(-10).map(m => `${m.role === 'user' ? 'User' : 'Mentor'}: ${m.text}`);
 
-    // Passa o userContext para a função de serviço
-    const responseText = await chatWithCoach(contextHistory, userText, userContext);
+    // Passa o userContext e o idioma para a função de serviço
+    const responseText = await chatWithCoach(contextHistory, userText, userContext, language);
     
     setLoading(false); // Para o indicador de "pensando"
     setIsTyping(true); // Inicia o bloqueio de digitação
@@ -123,7 +131,11 @@ const AICoach: React.FC = () => {
   const handleClearHistory = async () => {
     if (confirm("Deseja apagar todo o histórico de conversa?")) {
       await db.clearChat();
-      setMessages([{ role: 'model', text: 'Memória limpa. Vamos recomeçar! Qual é o seu foco hoje?' }]);
+      const resetMsg = language === 'pt' ? 'Memória limpa. Vamos recomeçar! Qual é o seu foco hoje?' 
+        : language === 'es' ? 'Memoria borrada. ¡Empecemos de nuevo! ¿Cuál es tu enfoque hoy?' 
+        : 'Memory cleared. Let\'s restart! What is your focus today?';
+        
+      setMessages([{ role: 'model', text: resetMsg }]);
     }
   };
 
@@ -162,9 +174,9 @@ const AICoach: React.FC = () => {
           </div>
           <div>
             <h3 className="font-bold text-base md:text-lg leading-tight flex items-center gap-2">
-              Mentor Virtual <Sparkles size={14} className="text-amber-400" />
+              {t('coach.title')} <Sparkles size={14} className="text-amber-400" />
             </h3>
-            <p className="text-[10px] md:text-xs text-slate-400">Online • IA Coach</p>
+            <p className="text-[10px] md:text-xs text-slate-400">Online • AI Coach</p>
           </div>
         </div>
         
@@ -252,7 +264,7 @@ const AICoach: React.FC = () => {
                 handleSend();
               }
             }}
-            placeholder={loading || isTyping ? "O mentor está respondendo..." : "Digite aqui..."}
+            placeholder={loading || isTyping ? "..." : t('coach.placeholder')}
             // text-base impede zoom no iPhone. max-h reduzido no mobile.
             className="flex-1 bg-transparent border-none outline-none text-slate-700 placeholder:text-slate-400 resize-none py-2.5 px-2 md:py-3 max-h-24 md:max-h-32 min-h-[44px] custom-scrollbar text-base md:text-lg disabled:cursor-not-allowed"
             rows={1}
@@ -271,7 +283,7 @@ const AICoach: React.FC = () => {
           </button>
         </div>
         <p className="text-center text-[10px] text-slate-400 mt-2 hidden sm:block">
-          O Mentor IA pode cometer erros. Verifique informações importantes.
+          {t('coach.disclaimer')}
         </p>
       </div>
     </div>

@@ -2,6 +2,15 @@ import { GoogleGenAI, Modality } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+const getLanguageName = (lang: string) => {
+  switch (lang) {
+    case 'pt': return 'Portuguese';
+    case 'en': return 'English';
+    case 'es': return 'Spanish';
+    default: return 'Portuguese';
+  }
+};
+
 // --- CONTEXTO RAG SIMULADO PARA O AGENTE DE SUPORTE ---
 const MINDRISE_KNOWLEDGE_BASE = `
 VOCÊ É O "AGENTE DE SUPORTE RISE MINDR". 
@@ -61,26 +70,30 @@ Analise o problema do usuário e forneça a solução exata baseada na lista aba
 - Sempre pergunte no final: "Isso resolveu seu problema ou deseja finalizar este atendimento?"
 `;
 
-export const reframeBelief = async (limitingBelief: string): Promise<string> => {
+export const reframeBelief = async (limitingBelief: string, language: string = 'pt'): Promise<string> => {
   if (!process.env.API_KEY) {
     return "Erro: Chave de API não configurada. Por favor, configure a API_KEY no ambiente.";
   }
 
+  const langName = getLanguageName(language);
+
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `O usuário tem a seguinte crença limitante: "${limitingBelief}".
+      contents: `User's limiting belief: "${limitingBelief}".
         
-        Sua tarefa:
-        1. Identifique o bloqueio por trás dessa frase.
-        2. Reescreva essa frase transformando-a em uma afirmação de Mentalidade Abundante e Vencedora.
-        3. Explique brevemente (1 frase) o porquê da mudança.
+        Task:
+        1. Identify the mental block behind this statement.
+        2. Rewrite this belief into a powerful Abundant Mindset affirmation.
+        3. Briefly explain (1 sentence) why this shift matters.
         
-        Retorne no seguinte formato:
-        Nova Crença: [Frase Poderosa]
-        Explicação: [Explicação Curta]`,
+        IMPORTANT: Respond strictly in ${langName}.
+        
+        Output format:
+        New Belief: [Powerful Phrase]
+        Explanation: [Short Explanation]`,
       config: {
-        systemInstruction: "Atue como um especialista em PNL (Programação Neurolinguística) e mentalidade de alta performance.",
+        systemInstruction: "You are an expert in NLP (Neuro-Linguistic Programming) and high-performance mindset.",
         temperature: 0.7,
       }
     });
@@ -92,24 +105,28 @@ export const reframeBelief = async (limitingBelief: string): Promise<string> => 
   }
 };
 
-export const chatWithCoach = async (history: string[], message: string, userContext?: string): Promise<string> => {
+export const chatWithCoach = async (history: string[], message: string, userContext?: string, language: string = 'pt'): Promise<string> => {
   if (!process.env.API_KEY) return "API Key ausente.";
+
+  const langName = getLanguageName(language);
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Histórico da conversa:
+      contents: `Conversation History:
         ${history.join('\n')}
         
-        ${userContext ? `CONTEXTO ATUAL DO USUÁRIO (Dados do App): \n${userContext}\nUse isso para personalizar a resposta, mas não mencione que está lendo dados, aja naturalmente.` : ''}
+        ${userContext ? `USER CONTEXT (App Data): \n${userContext}\nUse this to personalize the answer, but act naturally.` : ''}
 
-        Usuário: ${message}`,
+        User: ${message}`,
       config: {
-        systemInstruction: `Você é o "Mentor Mente Abundante", um coach virtual especialista em Mentalidade de Alta Performance.
-        Seus princípios são: Auto-responsabilidade, Mentalidade de Crescimento, Disciplina e Abundância.
+        systemInstruction: `You are the "Abundant Mind Mentor" (Rise Mindr), a virtual coach specializing in High Performance Mindset.
+        Your principles are: Self-responsibility, Growth Mindset, Discipline, and Abundance.
         
-        Responda de forma motivadora, direta e prática. Use emojis moderadamente.
-        NUNCA use negrito com dois asteriscos (**texto**). Se precisar enfatizar algo, use CAIXA ALTA ou aspas.`
+        IMPORTANT: Respond strictly in ${langName}.
+        
+        Respond in a motivating, direct, and practical way. Use emojis moderately.
+        NEVER use bold with double asterisks (**text**). If you need emphasis, use UPPERCASE or quotes.`
       }
     });
     return response.text || "";
@@ -118,19 +135,23 @@ export const chatWithCoach = async (history: string[], message: string, userCont
   }
 };
 
-export const chatWithSupportAgent = async (history: string[], message: string): Promise<string> => {
+export const chatWithSupportAgent = async (history: string[], message: string, language: string = 'pt'): Promise<string> => {
   if (!process.env.API_KEY) return "Erro: Sistema offline.";
+
+  const langName = getLanguageName(language);
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Histórico Recente:
+      contents: `Recent History:
       ${history.join('\n')}
       
-      Cliente: ${message}`,
+      Customer: ${message}`,
       config: {
-        systemInstruction: MINDRISE_KNOWLEDGE_BASE,
-        temperature: 0.3, // Baixa temperatura para respostas mais precisas/técnicas
+        systemInstruction: `${MINDRISE_KNOWLEDGE_BASE}
+        
+        IMPORTANT: You must translate your reasoning and final response to ${langName}. The user speaks ${langName}.`,
+        temperature: 0.3, 
       }
     });
     return response.text || "Desculpe, não consegui processar sua solicitação.";
@@ -144,7 +165,6 @@ export const generateGuidedAudio = async (text: string): Promise<string | null> 
 
   const makeRequest = async (retries = 2): Promise<string | null> => {
     try {
-      // Usando o modelo específico de TTS do Gemini com configuração robusta
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
         contents: {
@@ -155,23 +175,19 @@ export const generateGuidedAudio = async (text: string): Promise<string | null> 
           responseModalities: [Modality.AUDIO],
           speechConfig: {
             voiceConfig: {
-              // 'Kore' é uma voz geralmente calma e adequada para guias
               prebuiltVoiceConfig: { voiceName: 'Kore' },
             },
           },
         },
       });
 
-      // Retorna a string base64 do áudio
       return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data || null;
     } catch (e: any) {
-      // Retry para erros 500 (Internal Error)
       if (retries > 0 && (e.status === 500 || e.code === 500 || e.message?.includes('Internal error'))) {
          console.warn(`Retry TTS... (${retries})`);
          await new Promise(r => setTimeout(r, 1500));
          return makeRequest(retries - 1);
       }
-      
       console.error("Erro ao gerar áudio:", e);
       return null;
     }
@@ -180,19 +196,23 @@ export const generateGuidedAudio = async (text: string): Promise<string | null> 
   return makeRequest();
 };
 
-export const analyzePlanAction = async (dayTitle: string, userAnswer: string): Promise<string> => {
+export const analyzePlanAction = async (dayTitle: string, userAnswer: string, language: string = 'pt'): Promise<string> => {
   if (!process.env.API_KEY) return "Ótimo trabalho! Continue firme no seu propósito.";
+
+  const langName = getLanguageName(language);
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Contexto: O usuário está fazendo um "Plano de 7 Dias para Mentalidade Abundante".
+      contents: `Context: The user is doing a "7-Day Abundant Mindset Plan".
       
-      Tarefa do Dia: "${dayTitle}"
-      Resposta/Ação do Usuário: "${userAnswer}"
+      Day Task: "${dayTitle}"
+      User Answer/Action: "${userAnswer}"
       
-      Sua missão:
-      Analise a resposta do usuário. Aja como um mentor experiente e dê um feedback curto (máximo 2 frases) reforçando a ação dele ou sugerindo um ajuste fino para potencializar o resultado. Termine com uma palavra de incentivo.`,
+      Your Mission:
+      Analyze the user's answer. Act as an experienced mentor and give short feedback (max 2 sentences) reinforcing their action or suggesting a fine-tuning to boost results. End with a word of encouragement.
+      
+      IMPORTANT: Respond strictly in ${langName}.`,
       config: {
         temperature: 0.7,
       }
@@ -204,18 +224,22 @@ export const analyzePlanAction = async (dayTitle: string, userAnswer: string): P
   }
 };
 
-export const analyzeDailyHabit = async (taskName: string, userReflection: string): Promise<string> => {
+export const analyzeDailyHabit = async (taskName: string, userReflection: string, language: string = 'pt'): Promise<string> => {
   if (!process.env.API_KEY) return "";
+
+  const langName = getLanguageName(language);
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Contexto: Checklist Diário de Mentalidade Vencedora.
-      Hábito: "${taskName}"
-      Reflexão do Usuário: "${userReflection}"
+      contents: `Context: Daily Mindset Checklist.
+      Habit: "${taskName}"
+      User Reflection: "${userReflection}"
       
-      Sua missão:
-      Dê um "Insight Relâmpago" (máximo 15 palavras). Seja profundo, filosófico ou motivador, validando o esforço do usuário.`,
+      Your Mission:
+      Give a "Lightning Insight" (max 15 words). Be deep, philosophical, or motivating, validating the user's effort.
+      
+      IMPORTANT: Respond strictly in ${langName}.`,
       config: {
         temperature: 0.8,
       }
@@ -227,20 +251,20 @@ export const analyzeDailyHabit = async (taskName: string, userReflection: string
   }
 };
 
-export const generateGratitudeAffirmation = async (gratitudeText: string): Promise<string> => {
+export const generateGratitudeAffirmation = async (gratitudeText: string, language: string = 'pt'): Promise<string> => {
   if (!process.env.API_KEY) return "";
+
+  const langName = getLanguageName(language);
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `O usuário escreveu o seguinte no diário de gratidão: "${gratitudeText}".
+      contents: `The user wrote the following in their gratitude journal: "${gratitudeText}".
       
-      Sua missão:
-      Atue como um coach de Mentalidade Abundante. Escreva uma Afirmação Poderosa Curta (máximo 1 frase) que conecte esse motivo de gratidão com a atração de mais prosperidade ou felicidade.
+      Your Mission:
+      Act as an Abundant Mindset coach. Write a Short Powerful Affirmation (max 1 sentence) connecting this reason for gratitude with attracting more prosperity or happiness.
       
-      Exemplo:
-      Entrada: "Sou grato pela saúde da minha família"
-      Saída: "Minha gratidão pela saúde atrai vitalidade e alegria infinitas para o meu lar."`,
+      IMPORTANT: Respond strictly in ${langName}.`,
       config: {
         temperature: 0.7,
       }
@@ -253,28 +277,31 @@ export const generateGratitudeAffirmation = async (gratitudeText: string): Promi
 };
 
 // --- NOVO: GERADOR DE PLANO DE AÇÃO ---
-export const generateActionPlan = async (goal: string, timeframe: string): Promise<any[]> => {
+export const generateActionPlan = async (goal: string, timeframe: string, language: string = 'pt'): Promise<any[]> => {
   if (!process.env.API_KEY) throw new Error("API Key ausente");
+
+  const langName = getLanguageName(language);
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `O usuário tem o objetivo: "${goal}".
-      O prazo desejado é: "${timeframe}".
+      contents: `User Goal: "${goal}".
+      Timeframe: "${timeframe}".
 
-      Sua missão:
-      Crie um plano de ação prático no formato de Checklist, dividido cronologicamente para caber nesse prazo.
+      Your Mission:
+      Create a practical action plan in Checklist format, chronologically divided to fit this timeframe.
       
-      Regras:
-      1. Seja específico nas tarefas (ex: "Criar conta no Instagram" em vez de "Começar marketing").
-      2. Divida o tempo de forma lógica (ex: "Dia 1", "Semana 1", "Mês 2").
-      3. Gere entre 5 a 15 passos, dependendo da complexidade.
-      4. Retorne APENAS um JSON array válido. Sem markdown, sem texto extra.
+      Rules:
+      1. Be specific in tasks (e.g., "Create Instagram account" instead of "Start marketing").
+      2. Divide time logically (e.g., "Day 1", "Week 1", "Month 2").
+      3. Generate between 5 to 15 steps, depending on complexity.
+      4. Return ONLY a valid JSON array. No markdown, no extra text.
+      5. The content of the JSON must be in ${langName}.
 
-      Formato esperado do JSON:
+      Expected JSON Format:
       [
-        { "text": "Pesquisar concorrentes", "timing": "Dia 1" },
-        { "text": "Definir identidade visual", "timing": "Semana 1" }
+        { "text": "Task description in ${langName}", "timing": "Timeframe in ${langName}" },
+        { "text": "Another task in ${langName}", "timing": "Timeframe in ${langName}" }
       ]`,
       config: {
         temperature: 0.4, // Mais determinístico para seguir instruções JSON

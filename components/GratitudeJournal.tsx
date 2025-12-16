@@ -6,7 +6,7 @@ import { GratitudeEntry } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const GratitudeJournal: React.FC = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [entryText, setEntryText] = useState('');
   const [history, setHistory] = useState<GratitudeEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -30,9 +30,9 @@ const GratitudeJournal: React.FC = () => {
     setAnalyzing(true);
     let affirmation = '';
     
-    // Gera afirmação com IA
+    // Gera afirmação com IA passando o idioma
     try {
-      affirmation = await generateGratitudeAffirmation(entryText);
+      affirmation = await generateGratitudeAffirmation(entryText, language);
     } catch (e) {
       affirmation = "Sua gratidão transforma sua realidade.";
     }

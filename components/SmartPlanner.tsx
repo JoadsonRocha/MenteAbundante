@@ -6,7 +6,7 @@ import { GoalPlan, GoalStep } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const SmartPlanner: React.FC = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [plans, setPlans] = useState<GoalPlan[]>([]);
   const [goalInput, setGoalInput] = useState('');
   const [timeInput, setTimeInput] = useState('');
@@ -37,7 +37,7 @@ const SmartPlanner: React.FC = () => {
 
     setCreating(true);
     try {
-      const generatedSteps = await generateActionPlan(goalInput, timeInput);
+      const generatedSteps = await generateActionPlan(goalInput, timeInput, language);
       
       const newPlan: GoalPlan = {
         id: generateUUID(),

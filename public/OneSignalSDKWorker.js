@@ -2,13 +2,13 @@ importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
 // --- LÓGICA DO PWA (CACHE & OFFLINE) ---
 const CACHE_NAME = 'mindrise-v5-store-ready';
+// Apenas assets CRÍTICOS para o app abrir.
+// Removemos as imagens PNG grandes para evitar que o cache falhe se elas não existirem ou derem timeout.
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo.svg',
-  '/MindShift_192.png',
-  '/MindShift_512.png'
+  '/logo.svg'
 ];
 
 // Instalação

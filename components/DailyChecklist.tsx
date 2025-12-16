@@ -6,7 +6,7 @@ import { analyzeDailyHabit } from '../services/geminiService';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const DailyChecklist: React.FC = () => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [tasks, setTasks] = useState<DailyTask[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -19,7 +19,7 @@ const DailyChecklist: React.FC = () => {
 
   // Formata a data atual
   const today = new Date();
-  const dateString = today.toLocaleDateString('pt-BR', {
+  const dateString = today.toLocaleDateString(language === 'pt' ? 'pt-BR' : language === 'es' ? 'es-ES' : 'en-US', {
     weekday: 'long',
     day: 'numeric',
     month: 'long'
@@ -95,7 +95,7 @@ const DailyChecklist: React.FC = () => {
     if (hasNote && finalNote.trim().length > 3) {
       setAnalyzingId(selectedTask.id);
       try {
-        const advice = await analyzeDailyHabit(selectedTask.text, finalNote);
+        const advice = await analyzeDailyHabit(selectedTask.text, finalNote, language);
         
         if (advice) {
           updatedTasks = updatedTasks.map(t => 
@@ -225,7 +225,9 @@ const DailyChecklist: React.FC = () => {
 
              <div className="pt-4 mt-4 border-t border-slate-50 text-center">
                <p className="text-sm font-medium text-slate-500">
-                 Reflexão concluída. Pequenas atitudes diárias constroem grandes transformações.
+                 {language === 'pt' ? 'Reflexão concluída. Pequenas atitudes diárias constroem grandes transformações.' :
+                  language === 'es' ? 'Reflexión completada. Pequeñas actitudes diarias construyen grandes transformaciones.' :
+                  'Reflection complete. Small daily actions build great transformations.'}
                </p>
              </div>
            </div>

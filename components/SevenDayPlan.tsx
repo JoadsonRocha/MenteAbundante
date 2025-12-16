@@ -4,12 +4,14 @@ import { DayPlan, Tab } from '../types';
 import { db } from '../services/database';
 import { analyzePlanAction } from '../services/geminiService';
 import { SEVEN_DAY_PLAN } from '../constants';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface SevenDayPlanProps {
   onNavigate: (tab: Tab) => void;
 }
 
 const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
+  const { language } = useLanguage();
   const [plan, setPlan] = useState<DayPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingDay, setProcessingDay] = useState<number | null>(null);
@@ -39,8 +41,8 @@ const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
     setProcessingDay(dayNum);
     
     try {
-      // 1. Gera feedback da IA
-      const feedback = await analyzePlanAction(day.title, day.answer);
+      // 1. Gera feedback da IA passando o idioma atual
+      const feedback = await analyzePlanAction(day.title, day.answer, language);
 
       // 2. Atualiza o estado local com feedback, completado e DATA DE CONCLUSÃO
       const newPlan = plan.map(d => d.day === dayNum ? { 

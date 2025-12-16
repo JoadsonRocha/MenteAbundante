@@ -240,7 +240,6 @@ const AppContent: React.FC = () => {
           <button onClick={() => handleTabChange('dashboard')} className="flex items-center gap-2">
             <div className="flex flex-col items-start">
               <h1 className="font-extrabold text-[#F87A14] text-lg tracking-tight leading-none">Rise Mindr</h1>
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none mt-0.5">Avance!</span>
             </div>
           </button>
           
