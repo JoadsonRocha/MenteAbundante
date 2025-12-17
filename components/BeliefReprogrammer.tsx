@@ -12,9 +12,11 @@ const BeliefReprogrammer: React.FC = () => {
   const [loadingAI, setLoadingAI] = useState(false);
   const [savedEntries, setSavedEntries] = useState<BeliefEntry[]>([]);
 
-  // Carregar histórico do banco
+  // Carregar histórico do banco com tratamento de erro
   useEffect(() => {
-    db.getBeliefs().then(setSavedEntries);
+    db.getBeliefs()
+      .then(setSavedEntries)
+      .catch(err => console.error("Falha ao carregar crenças", err));
   }, []);
 
   const handleReprogram = async () => {

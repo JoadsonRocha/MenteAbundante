@@ -17,6 +17,7 @@ let isInitialized = false;
 export const initOneSignal = async (userId?: string) => {
   if (typeof window === 'undefined') return;
 
+  // Garante que o array existe antes de qualquer coisa
   window.OneSignal = window.OneSignal || [];
   
   try {
@@ -63,7 +64,7 @@ export const initOneSignal = async (userId?: string) => {
               // Se o erro for "already initialized", ignoramos e marcamos como true
               const errMsg = initErr?.message || initErr?.toString() || '';
               if (errMsg.includes('already initialized')) {
-                 console.log("OneSignal já estava inicializado.");
+                 // console.log("OneSignal já estava inicializado.");
                  isInitialized = true;
               } else {
                  console.warn("Aviso na inicialização do OneSignal:", initErr);
@@ -83,7 +84,7 @@ export const initOneSignal = async (userId?: string) => {
                       await syncOneSignalIdToSupabase();
                       return;
                    } else {
-                      console.warn("OneSignal User object missing, skipping login.");
+                      // console.warn("OneSignal User object missing, skipping login.");
                       return;
                    }
                 }
@@ -126,16 +127,15 @@ export const initOneSignal = async (userId?: string) => {
               // Silencia erros de listener para não poluir o console do usuário
           }
       } catch (innerErr: any) {
-          // Captura erros internos do SDK
-          console.warn("Erro interno na execução do OneSignal:", innerErr);
+          // Captura erros internos do SDK para não virar Uncaught
+          // console.warn("Erro interno na execução do OneSignal:", innerErr);
       }
     });
   } catch (error: any) {
     const errorMsg = error?.message || error?.toString() || '';
-    if (errorMsg.includes('already initialized')) {
-       return;
+    if (!errorMsg.includes('already initialized')) {
+       console.error("Erro geral no OneSignal (Init):", error);
     }
-    console.error("Erro geral no OneSignal:", error);
   }
 };
 
@@ -154,7 +154,6 @@ export const logoutOneSignal = async () => {
         // Verifica se há um usuário logado antes de tentar deslogar para evitar erros
         if (window.OneSignal.User && window.OneSignal.User.externalId) {
             await window.OneSignal.logout();
-            // console.log("OneSignal logout realizado com sucesso.");
         }
       } catch (e) {
         console.warn("Erro ao deslogar do OneSignal:", e);
@@ -171,7 +170,15 @@ export const logoutOneSignal = async () => {
  */
 export const syncOneSignalIdToSupabase = async () => {
     if (!supabase) return;
+    
+    // VERIFICAÇÃO DE SEGURANÇA: Só tenta sincronizar se o usuário estiver logado
+    const { data } = await supabase.auth.getSession();
+    if (!data.session?.user) {
+        return;
+    }
+
     const dbClient = supabase;
+    window.OneSignal = window.OneSignal || [];
 
     try {
         window.OneSignal.push(async () => {
@@ -183,8 +190,6 @@ export const syncOneSignalIdToSupabase = async () => {
                 const subscriptionId = window.OneSignal.User.PushSubscription.id;
                 
                 if (subscriptionId && window.OneSignal.User.PushSubscription.optedIn) {
-                    // console.log("Sincronizando OneSignal ID:", subscriptionId);
-                    
                     const { error } = await dbClient.rpc('sync_onesignal_id', { 
                         p_player_id: subscriptionId 
                     });
@@ -206,7 +211,10 @@ export const syncOneSignalIdToSupabase = async () => {
  * Retorna o Player ID atual (se disponível) para exibição ou debug
  */
 export const getOneSignalPlayerId = async (): Promise<string | null> => {
-    if (typeof window === 'undefined' || !window.OneSignal) return null;
+    if (typeof window === 'undefined') return null;
+    
+    window.OneSignal = window.OneSignal || [];
+
     try {
         let id = null;
         await new Promise<void>((resolve) => {
@@ -226,9 +234,12 @@ export const getOneSignalPlayerId = async (): Promise<string | null> => {
 };
 
 export const requestNotificationPermission = async () => {
-    if (typeof window !== 'undefined' && window.OneSignal) {
+    if (typeof window !== 'undefined') {
+        window.OneSignal = window.OneSignal || [];
         try {
-            await window.OneSignal.Slidedown.promptPush();
+            window.OneSignal.push(async () => {
+                await window.OneSignal.Slidedown.promptPush();
+            });
         } catch(e) {
             console.warn("Erro ao pedir permissão:", e);
         }
@@ -236,7 +247,9 @@ export const requestNotificationPermission = async () => {
 };
 
 export const isPushEnabled = async (): Promise<boolean> => {
-    if (typeof window === 'undefined' || !window.OneSignal) return false;
+    if (typeof window === 'undefined') return false;
+    window.OneSignal = window.OneSignal || [];
+
     try {
        let enabled = false;
        await new Promise<void>((resolve) => {

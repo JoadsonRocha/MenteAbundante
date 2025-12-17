@@ -22,6 +22,8 @@ const SevenDayPlan: React.FC<SevenDayPlanProps> = ({ onNavigate }) => {
       try {
         const data = await db.getPlan();
         setPlan(data);
+      } catch (e) {
+        console.error("Falha ao carregar plano", e);
       } finally {
         setLoading(false);
       }

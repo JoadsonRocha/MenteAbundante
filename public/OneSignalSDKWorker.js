@@ -1,9 +1,13 @@
-importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+try {
+  importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
+} catch (e) {
+  // Ignora erro de script se estiver offline ou bloqueado, permitindo que o PWA continue funcionando.
+  console.warn("OneSignal Worker Import Failed (Offline or Blocked):", e);
+}
 
 // --- LÓGICA DO PWA (CACHE & OFFLINE) ---
 const CACHE_NAME = 'mindrise-v5-store-ready';
 // Apenas assets CRÍTICOS para o app abrir.
-// Removemos as imagens PNG grandes para evitar que o cache falhe se elas não existirem ou derem timeout.
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

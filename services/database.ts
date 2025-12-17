@@ -3,17 +3,14 @@ import { DailyTask, DayPlan, BeliefEntry, ChatMessage, ActivityLog, UserProfile,
 import { INITIAL_TASKS, SEVEN_DAY_PLAN } from '../constants';
 
 // --- CONFIGURAÇÃO DO SUPABASE ---
-// Substitua estas chaves pelas do seu projeto Supabase real para produção
 const DEFAULT_URL = "https://qyjlkxjnpohqxvaiqcmx.supabase.co";
 const DEFAULT_KEY = "sb_publishable_9i0XVchnkLqgtps3kB0w8w_66RldWiQ";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || DEFAULT_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY || DEFAULT_KEY;
 
-// Em produção, inicializamos o cliente se houver URL e Key, independente do formato
 const hasSupabase = !!(SUPABASE_URL && SUPABASE_KEY);
 
-// Exportamos para usar no AuthContext
 export const supabase: SupabaseClient | null = hasSupabase 
   ? createClient(SUPABASE_URL, SUPABASE_KEY, {
       auth: {
@@ -23,7 +20,6 @@ export const supabase: SupabaseClient | null = hasSupabase
     }) 
   : null;
 
-// EXPORTADO PARA USO NO AUTHCONTEXT (SEGURANÇA NO LOGOUT)
 export const STORAGE_KEYS = {
   TASKS: 'mente_tasks',
   PLAN: 'mente_plan',
@@ -37,14 +33,26 @@ export const STORAGE_KEYS = {
   SUPPORT_TICKETS: 'mente_support_tickets'
 };
 
-// Helper para pegar ID do usuário atual
-const getCurrentUserId = async (): Promise<string | null> => {
-  if (!supabase) return null;
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id || null;
+// HELPER SEGURO PARA JSON PARSE
+// Evita que o app trave com "Uncaught SyntaxError" se o localStorage for corrompido
+const safeParse = <T>(key: string, fallback: T): T => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : fallback;
+  } catch (e) {
+    console.warn(`Erro ao ler ${key} do storage, resetando para fallback.`, e);
+    // Opcional: limpar o item corrompido para evitar erros futuros
+    // localStorage.removeItem(key); 
+    return fallback;
+  }
 };
 
-// Helper para gerar UUID v4 compatível com Postgres
+const getCurrentUserId = async (): Promise<string | null> => {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user?.id || null;
+};
+
 export const generateUUID = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -55,7 +63,6 @@ export const generateUUID = () => {
   });
 };
 
-// --- FUNÇÃO DE SINCRONIZAÇÃO (Sync Engine) ---
 export const syncLocalDataToSupabase = async () => {
   if (!supabase || !navigator.onLine) return;
   
@@ -64,14 +71,14 @@ export const syncLocalDataToSupabase = async () => {
 
   try {
     // 1. Sync Tasks
-    const localTasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || '[]');
+    const localTasks = safeParse(STORAGE_KEYS.TASKS, []);
     if (localTasks.length > 0) {
       const tasksWithUser = localTasks.map((t: any) => ({ ...t, user_id: userId }));
       await supabase.from('tasks').upsert(tasksWithUser);
     }
 
     // 2. Sync Plan
-    const localPlan = JSON.parse(localStorage.getItem(STORAGE_KEYS.PLAN) || '[]');
+    const localPlan = safeParse(STORAGE_KEYS.PLAN, []);
     const modifiedDays = localPlan.filter((p: any) => p.completed || p.answer);
     if (modifiedDays.length > 0) {
       const plansWithUser = modifiedDays.map((p: any) => ({ 
@@ -87,10 +94,9 @@ export const syncLocalDataToSupabase = async () => {
     }
 
     // 3. Sync Activity Logs
-    const localLogs = JSON.parse(localStorage.getItem(STORAGE_KEYS.ACTIVITY) || '[]');
+    const localLogs = safeParse(STORAGE_KEYS.ACTIVITY, []);
     if (localLogs.length > 0) {
        for (const log of localLogs) {
-         // CORREÇÃO: Usar maybeSingle() para evitar erro 406 se não existir
          const { data } = await supabase.from('activity_logs')
            .select('*')
            .eq('user_id', userId)
@@ -106,7 +112,7 @@ export const syncLocalDataToSupabase = async () => {
     }
     
     // 4. Sync Profile
-    const localProfile = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROFILE) || 'null');
+    const localProfile = safeParse(STORAGE_KEYS.PROFILE, null) as any;
     if (localProfile && localProfile.id === userId) {
       const payload = {
          id: userId,
@@ -116,7 +122,6 @@ export const syncLocalDataToSupabase = async () => {
          statement: localProfile.statement,
          updated_at: new Date().toISOString()
       };
-      // Tenta upsert, com fallback se colunas novas não existirem
       const { error } = await supabase.from('profiles').upsert(payload);
       if (error && error.message?.includes('imagem')) {
          const { imagem, ...basicPayload } = payload;
@@ -125,7 +130,7 @@ export const syncLocalDataToSupabase = async () => {
     }
 
     // 5. Sync Gratitude (Upload)
-    const localGratitude = JSON.parse(localStorage.getItem(STORAGE_KEYS.GRATITUDE) || '[]');
+    const localGratitude = safeParse(STORAGE_KEYS.GRATITUDE, []);
     if (localGratitude.length > 0) {
       const validEntries = localGratitude.filter((g: any) => g.id && g.id.length > 10);
       const entriesWithUser = validEntries.map((g: any) => ({ ...g, user_id: userId }));
@@ -136,14 +141,14 @@ export const syncLocalDataToSupabase = async () => {
     }
     
     // 6. Sync Goal Plans
-    const localGoals = JSON.parse(localStorage.getItem(STORAGE_KEYS.GOAL_PLANS) || '[]');
+    const localGoals = safeParse(STORAGE_KEYS.GOAL_PLANS, []);
     if (localGoals.length > 0) {
        const goalsWithUser = localGoals.map((g: any) => ({ ...g, user_id: userId }));
        await supabase.from('goal_plans').upsert(goalsWithUser);
     }
 
     // 7. Sync Support Tickets
-    const localTickets = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUPPORT_TICKETS) || '[]');
+    const localTickets = safeParse(STORAGE_KEYS.SUPPORT_TICKETS, []);
     if (localTickets.length > 0) {
        const ticketsWithUser = localTickets.map((t: any) => ({ ...t, user_id: userId }));
        await supabase.from('support_tickets').upsert(ticketsWithUser);
@@ -164,9 +169,9 @@ export const db = {
   // --- PERFIL ---
   async getProfile(): Promise<UserProfile | null> {
     const userId = await getCurrentUserId();
-    const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
-    if (saved) {
-      const parsed = JSON.parse(saved);
+    const parsed = safeParse<UserProfile | null>(STORAGE_KEYS.PROFILE, null);
+    
+    if (parsed) {
       if (userId && parsed.id === userId) return parsed;
       if (userId && parsed.id && parsed.id !== userId) localStorage.removeItem(STORAGE_KEYS.PROFILE);
     }
@@ -217,7 +222,8 @@ export const db = {
     const saved = localStorage.getItem(STORAGE_KEYS.TASKS);
     if (saved) {
       if (navigator.onLine) syncLocalDataToSupabase(); 
-      return JSON.parse(saved);
+      // Safe parse aqui garante que não retorne erro se o JSON for inválido
+      return safeParse(STORAGE_KEYS.TASKS, INITIAL_TASKS);
     }
 
     if (supabase && navigator.onLine) {
@@ -257,8 +263,7 @@ export const db = {
   async setActivityCount(count: number): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
-      let logs: ActivityLog[] = saved ? JSON.parse(saved) : [];
+      let logs: ActivityLog[] = safeParse(STORAGE_KEYS.ACTIVITY, []);
       const existingIndex = logs.findIndex(l => l.date === today);
       if (existingIndex >= 0) {
         logs[existingIndex].count = count;
@@ -273,7 +278,6 @@ export const db = {
         try {
           const userId = await getCurrentUserId();
           if (userId) {
-            // CORREÇÃO: Usar maybeSingle() para evitar erro 406
             const { data } = await supabase.from('activity_logs')
               .select('*')
               .eq('user_id', userId)
@@ -293,19 +297,17 @@ export const db = {
 
   async logActivity(increment: number = 1): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
-    const saved = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
     let currentCount = 0;
-    if (saved) {
-      const logs = JSON.parse(saved);
-      const todayLog = logs.find((l: any) => l.date === today);
-      if (todayLog) currentCount = todayLog.count;
-    }
+    const logs = safeParse<any[]>(STORAGE_KEYS.ACTIVITY, []);
+    const todayLog = logs.find((l: any) => l.date === today);
+    if (todayLog) currentCount = todayLog.count;
+    
     return this.setActivityCount(currentCount + increment);
   },
 
   async getActivityLogs(): Promise<ActivityLog[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
-    if (saved) return JSON.parse(saved);
+    if (saved) return safeParse(STORAGE_KEYS.ACTIVITY, []);
 
     if (supabase && navigator.onLine) {
       try {
@@ -325,20 +327,24 @@ export const db = {
   // --- PLANO 7 DIAS ---
   async getPlan(): Promise<DayPlan[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.PLAN);
-    let localData = saved ? JSON.parse(saved) : null;
+    // Safe parse para evitar crash
+    let localData = saved ? safeParse(STORAGE_KEYS.PLAN, null) : null;
+    
     if (localData) {
        if(navigator.onLine) syncLocalDataToSupabase();
-       return localData;
+       return localData as DayPlan[];
     }
 
     if (supabase && navigator.onLine) {
       const userId = await getCurrentUserId();
       if (userId) {
-         const { data } = await supabase.from('plans').select('*').eq('user_id', userId).order('day');
-         if (data && data.length > 0) {
-           localStorage.setItem(STORAGE_KEYS.PLAN, JSON.stringify(data));
-           return data as DayPlan[];
-         }
+         try {
+           const { data } = await supabase.from('plans').select('*').eq('user_id', userId).order('day');
+           if (data && data.length > 0) {
+             localStorage.setItem(STORAGE_KEYS.PLAN, JSON.stringify(data));
+             return data as DayPlan[];
+           }
+         } catch (e) {}
       }
     }
     return SEVEN_DAY_PLAN;
@@ -365,7 +371,7 @@ export const db = {
     const userId = await getCurrentUserId();
     const saved = localStorage.getItem(STORAGE_KEYS.BELIEFS);
     
-    if (saved) return JSON.parse(saved);
+    if (saved) return safeParse(STORAGE_KEYS.BELIEFS, []);
     
     if (supabase && navigator.onLine && userId) {
        try {
@@ -408,23 +414,19 @@ export const db = {
         }
       } catch (e) { }
     }
-    const saved = localStorage.getItem(STORAGE_KEYS.GRATITUDE);
-    if (saved) {
-      const parsed = JSON.parse(saved) as GratitudeEntry[];
-      if (userId && parsed.length > 0 && parsed[0].user_id && parsed[0].user_id !== userId) {
+    
+    const parsed = safeParse<GratitudeEntry[]>(STORAGE_KEYS.GRATITUDE, []);
+    if (userId && parsed.length > 0 && parsed[0].user_id && parsed[0].user_id !== userId) {
         localStorage.removeItem(STORAGE_KEYS.GRATITUDE);
         return [];
-      }
-      return parsed;
     }
-    return [];
+    return parsed;
   },
 
   async addGratitudeEntry(entry: GratitudeEntry): Promise<void> {
     const userId = await getCurrentUserId();
     const entryWithUser = userId ? { ...entry, user_id: userId } : entry;
-    const saved = localStorage.getItem(STORAGE_KEYS.GRATITUDE);
-    const current = saved ? JSON.parse(saved) : [];
+    const current = await db.getGratitudeHistory();
     const updated = [entryWithUser, ...current];
     localStorage.setItem(STORAGE_KEYS.GRATITUDE, JSON.stringify(updated));
 
@@ -438,7 +440,8 @@ export const db = {
   // --- CHAT ---
   async getChatHistory(): Promise<ChatMessage[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.CHAT);
-    if(saved) return JSON.parse(saved);
+    if(saved) return safeParse(STORAGE_KEYS.CHAT, []);
+    
     if (supabase && navigator.onLine) {
       try {
         const userId = await getCurrentUserId();
@@ -455,7 +458,7 @@ export const db = {
   },
 
   async saveChatMessage(message: ChatMessage): Promise<void> {
-    const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.CHAT) || '[]');
+    const current = safeParse<ChatMessage[]>(STORAGE_KEYS.CHAT, []);
     const updated = [...current, message];
     localStorage.setItem(STORAGE_KEYS.CHAT, JSON.stringify(updated));
 
@@ -500,7 +503,6 @@ export const db = {
 
       const { error } = await supabase.from('feedbacks').insert(payload);
       if (error) {
-        console.error("Erro Supabase Feedback:", error);
         throw new Error("Não foi possível enviar o feedback. Tente novamente.");
       }
     } else {
@@ -508,26 +510,27 @@ export const db = {
     }
   },
 
-  // --- SMART PLANNER (NOVO) ---
+  // --- SMART PLANNER ---
   async getGoalPlans(): Promise<GoalPlan[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.GOAL_PLANS);
-    if (saved) return JSON.parse(saved);
+    if (saved) return safeParse(STORAGE_KEYS.GOAL_PLANS, []);
 
     if (supabase && navigator.onLine) {
        const userId = await getCurrentUserId();
        if (userId) {
-          const { data } = await supabase.from('goal_plans').select('*').eq('user_id', userId).order('created_at', { ascending: false });
-          if (data) {
-            localStorage.setItem(STORAGE_KEYS.GOAL_PLANS, JSON.stringify(data));
-            return data as GoalPlan[];
-          }
+          try {
+             const { data } = await supabase.from('goal_plans').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+             if (data) {
+               localStorage.setItem(STORAGE_KEYS.GOAL_PLANS, JSON.stringify(data));
+               return data as GoalPlan[];
+             }
+          } catch (e) {}
        }
     }
     return [];
   },
 
   async saveGoalPlan(plan: GoalPlan): Promise<void> {
-    // Local
     const current = await db.getGoalPlans();
     const exists = current.find(p => p.id === plan.id);
     let updated = [];
@@ -538,16 +541,12 @@ export const db = {
     }
     localStorage.setItem(STORAGE_KEYS.GOAL_PLANS, JSON.stringify(updated));
 
-    // Supabase
     if (supabase && navigator.onLine) {
       const userId = await getCurrentUserId();
       const payload = { ...plan, user_id: userId };
-      
       try {
         await supabase.from('goal_plans').upsert(payload);
-      } catch (e) {
-        console.error("Erro ao salvar plano no DB", e);
-      }
+      } catch (e) {}
     }
   },
 
@@ -559,66 +558,51 @@ export const db = {
     if (supabase && navigator.onLine) {
       const userId = await getCurrentUserId();
       if (userId) {
-         const { error } = await supabase.from('goal_plans').delete().eq('id', id).eq('user_id', userId);
-         if (error) {
-           console.error("Erro ao deletar plano no Supabase:", error);
-         }
+         try {
+           await supabase.from('goal_plans').delete().eq('id', id).eq('user_id', userId);
+         } catch(e) {}
       }
     }
   },
 
-  // --- SUPPORT SYSTEM (TICKETS) - INTEGRAÇÃO ATIVA ---
+  // --- SUPPORT SYSTEM ---
   async createSupportTicket(ticket: SupportTicket): Promise<void> {
-    // 1. Salva Local (Fallback/Offline)
-    const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUPPORT_TICKETS) || '[]');
+    const current = safeParse<SupportTicket[]>(STORAGE_KEYS.SUPPORT_TICKETS, []);
     const updated = [ticket, ...current];
     localStorage.setItem(STORAGE_KEYS.SUPPORT_TICKETS, JSON.stringify(updated));
     
-    // 2. Salva Supabase
     if (supabase && navigator.onLine) {
       const userId = await getCurrentUserId();
       if (userId) {
          try {
            const payload = { ...ticket, user_id: userId };
-           const { error } = await supabase.from('support_tickets').insert(payload);
-           if (error) console.error("Erro Supabase Support Create:", error);
-         } catch (e) {
-           console.error("Erro ao enviar ticket para nuvem", e);
-         }
+           await supabase.from('support_tickets').insert(payload);
+         } catch (e) {}
       }
     }
   },
   
-  // Atualizar status do ticket (Resolver) com verificação robusta
   async updateSupportTicketStatus(id: string, status: 'resolved'): Promise<void> {
-    // 1. Atualiza Local
-    const current = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUPPORT_TICKETS) || '[]');
+    const current = safeParse<SupportTicket[]>(STORAGE_KEYS.SUPPORT_TICKETS, []);
     const updated = current.map((t: SupportTicket) => t.id === id ? { ...t, status } : t);
     localStorage.setItem(STORAGE_KEYS.SUPPORT_TICKETS, JSON.stringify(updated));
 
-    // 2. Atualiza Supabase
     if (supabase && navigator.onLine) {
        const userId = await getCurrentUserId();
        if (userId) {
           try {
-             const { error } = await supabase.from('support_tickets')
+             await supabase.from('support_tickets')
                .update({ status: status })
                .eq('id', id)
                .eq('user_id', userId);
-             
-             if(error) console.error("Erro Supabase Update Ticket:", error);
-          } catch(e) {
-             console.error("Erro ao fechar ticket no banco", e);
-          }
+          } catch(e) {}
        }
     }
   },
 
   async getSupportHistory(): Promise<SupportTicket[]> {
-    // 1. Tenta carregar local para velocidade
     const saved = localStorage.getItem(STORAGE_KEYS.SUPPORT_TICKETS);
     
-    // 2. Sincroniza/Busca do Supabase se online
     if (supabase && navigator.onLine) {
        const userId = await getCurrentUserId();
        if (userId) {
@@ -630,16 +614,13 @@ export const db = {
                .order('created_at', { ascending: false });
              
              if (data && data.length > 0) {
-               // Atualiza cache local
                localStorage.setItem(STORAGE_KEYS.SUPPORT_TICKETS, JSON.stringify(data));
                return data as SupportTicket[];
              }
-          } catch (e) {
-             console.error("Erro ao buscar tickets", e);
-          }
+          } catch (e) {}
        }
     }
 
-    return saved ? JSON.parse(saved) : [];
+    return saved ? safeParse(STORAGE_KEYS.SUPPORT_TICKETS, []) : [];
   }
 };

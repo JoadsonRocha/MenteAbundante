@@ -38,42 +38,53 @@ const ProgressStats: React.FC = () => {
       const beliefs = await db.getBeliefs();
       setBeliefCount(beliefs.length);
       
-      // Checar status do OneSignal
-      const enabled = await isPushEnabled();
-      setRemindersEnabled(enabled);
+      // Checar status do OneSignal de forma segura
+      try {
+        const enabled = await isPushEnabled();
+        setRemindersEnabled(enabled);
+      } catch (e) {
+        console.warn("OneSignal status check failed", e);
+      }
     };
     loadData();
   }, []);
 
   const toggleReminders = async () => {
     setLoadingToggle(true);
-    try {
-      if (remindersEnabled) {
-        // Desativar (Opt-out)
-        if (window.OneSignal) {
-           await window.OneSignal.User.PushSubscription.optOut();
-        }
-        setRemindersEnabled(false);
-      } else {
-        // Ativar (Opt-in via Slidedown ou Nativo)
-        await requestNotificationPermission();
-        
-        // Verifica novamente após um breve delay para atualizar UI
-        // (O usuário precisa aceitar o prompt do navegador)
-        setTimeout(async () => {
-           const enabled = await isPushEnabled();
-           setRemindersEnabled(enabled);
-           setLoadingToggle(false);
-        }, 1000); // Check rápido
-        
-        // Listener global no service worker cuidará do resto
-        return; 
-      }
-    } catch (e) {
-      console.error("Erro ao alterar notificações", e);
-    } finally {
-      // Se for desativar, remove o loading logo. Se for ativar, o timeout cuida (ou o listener)
-      if (remindersEnabled) setLoadingToggle(false); 
+    
+    // Verificação de segurança: O OneSignal pode ser undefined ou um array [] enquanto carrega.
+    // Usamos o .push para garantir que o código só rode quando o SDK estiver pronto.
+    if (typeof window !== 'undefined' && window.OneSignal) {
+      window.OneSignal.push(async () => {
+         try {
+           if (remindersEnabled) {
+             // Desativar (Opt-out)
+             // Verificação profunda para evitar Uncaught TypeError se User for undefined
+             if (window.OneSignal.User && window.OneSignal.User.PushSubscription) {
+                await window.OneSignal.User.PushSubscription.optOut();
+                setRemindersEnabled(false);
+             }
+           } else {
+             // Ativar (Opt-in via Slidedown ou Nativo)
+             await requestNotificationPermission();
+             
+             // Verifica novamente após um breve delay para atualizar UI
+             setTimeout(async () => {
+                const enabled = await isPushEnabled();
+                setRemindersEnabled(enabled);
+                setLoadingToggle(false);
+             }, 1000); 
+             return; 
+           }
+         } catch (e) {
+           console.error("Erro ao alterar notificações", e);
+         } finally {
+           // Se não retornou antes (caso de ativar), desliga o loading aqui
+           if (remindersEnabled) setLoadingToggle(false); 
+         }
+      });
+    } else {
+      setLoadingToggle(false);
     }
   };
 

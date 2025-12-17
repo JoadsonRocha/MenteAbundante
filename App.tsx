@@ -28,8 +28,14 @@ import { initOneSignal } from './services/notificationService';
 const AppContent: React.FC = () => {
   const { user, loading, signOut } = useAuth();
   
+  // Inicialização do Tab baseada na URL (Hash) para suportar links diretos e refresh
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     if (typeof window !== 'undefined') {
+      // 1. Prioridade: Hash da URL
+      const hash = window.location.hash.replace('#', '');
+      if (hash) return hash as Tab;
+      
+      // 2. Fallback: LocalStorage
       const savedTab = localStorage.getItem('mente_active_tab');
       if (savedTab === 'profile') return 'dashboard';
       return (savedTab as Tab) || 'dashboard';
@@ -64,7 +70,30 @@ const AppContent: React.FC = () => {
     'anxiety'
   ];
 
-  // Função intermediária para navegação protegida
+  // Listener para Botão Voltar (History API / Hash Change)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash && hash !== activeTab) {
+        // Se o hash mudou (ex: clicou em voltar), atualiza o estado
+        setActiveTab(hash as Tab);
+      } else if (!hash && activeTab !== 'dashboard') {
+        // Se voltou para raiz, assume dashboard
+        setActiveTab('dashboard');
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    
+    // Garante que a URL inicial tenha o hash correto sem adicionar entrada no histórico
+    if (!window.location.hash && activeTab) {
+       window.history.replaceState(null, '', `#${activeTab}`);
+    }
+
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [activeTab]);
+
+  // Função de navegação principal
   const handleTabChange = (tab: Tab) => {
     // Se não tiver usuário E a aba for protegida
     if (!user && protectedTabs.includes(tab)) {
@@ -72,7 +101,8 @@ const AppContent: React.FC = () => {
       return;
     }
     
-    // Navegação normal
+    // Navegação normal: Atualiza Hash (Gera histórico) e State
+    window.location.hash = tab;
     setActiveTab(tab);
     setSidebarOpen(false); // Fecha sidebar no mobile ao navegar
   };
@@ -82,13 +112,15 @@ const AppContent: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeTab]);
 
-  // Efeito para Logout: Se o usuário ficar nulo (clicou em sair), volta pra dashboard e abre login
+  // Efeito para Logout ou Tentativa de Acesso Protegido via Back Button
   useEffect(() => {
     if (!loading && !user && protectedTabs.includes(activeTab)) {
+       // Se estiver numa aba protegida sem login (ex: após logout ou voltar histórico), redireciona
+       window.history.replaceState(null, '', '#dashboard');
        setActiveTab('dashboard');
        setShowLoginModal(true);
     }
-  }, [user, loading]);
+  }, [user, loading, activeTab]);
 
   // Efeito para inicialização de dados (User Dependent)
   useEffect(() => {
@@ -204,7 +236,6 @@ const AppContent: React.FC = () => {
       case 'feedback':
         return <FeedbackForm />;
       case 'anxiety':
-        // Ansiedade agora é protegida e renderiza normal no layout (removemos o onClose pois usa o layout padrão)
         return <AnxietyControl onNavigateToPlanner={handleNavigateToPlanner} />;
       case 'about':
         return <About navigateTo={handleTabChange} />;

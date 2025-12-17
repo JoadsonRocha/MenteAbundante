@@ -11,13 +11,17 @@ if (!rootElement) {
 // Apontamos diretamente para o OneSignalSDKWorker.js que contém ambas as lógicas
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/OneSignalSDKWorker.js')
-      .then(registration => {
-        console.log('SW (PWA/OneSignal) registrado com sucesso:', registration.scope);
-      })
-      .catch(error => {
-        console.log('Info: Service Worker não registrado (normal em ambiente de preview/dev).', error);
-      });
+    try {
+      navigator.serviceWorker.register('/OneSignalSDKWorker.js')
+        .then(registration => {
+          console.log('SW (PWA/OneSignal) registrado com sucesso:', registration.scope);
+        })
+        .catch(error => {
+          console.warn('Falha no registro do Service Worker (Normal em dev ou iframe):', error);
+        });
+    } catch (e) {
+      console.warn('Erro ao tentar registrar SW:', e);
+    }
   });
 }
 
