@@ -66,7 +66,14 @@ self.addEventListener('fetch', (event) => {
             .then((cachedResponse) => {
               if (cachedResponse) return cachedResponse;
               // CRUCIAL: Retorna index.html se não conseguir carregar a rota (SPA Navigation Fallback)
-              return caches.match('/index.html');
+              return caches.match('/index.html')
+                .then(indexResponse => {
+                     // Fallback final para evitar "Uncaught (in promise)" se nem o index.html estiver no cache
+                     return indexResponse || new Response("Offline - Page not found. Please connect to internet.", { 
+                        status: 404, 
+                        headers: {'Content-Type': 'text/plain'} 
+                     });
+                });
             });
         })
     );

@@ -65,95 +65,94 @@ export const generateUUID = () => {
 
 export const syncLocalDataToSupabase = async () => {
   if (!supabase || !navigator.onLine) return;
-  
-  const userId = await getCurrentUserId();
-  if (!userId) return;
 
   try {
-    // 1. Sync Tasks
-    const localTasks = safeParse(STORAGE_KEYS.TASKS, []);
-    if (localTasks.length > 0) {
-      const tasksWithUser = localTasks.map((t: any) => ({ ...t, user_id: userId }));
-      await supabase.from('tasks').upsert(tasksWithUser);
-    }
+      const userId = await getCurrentUserId();
+      if (!userId) return;
 
-    // 2. Sync Plan
-    const localPlan = safeParse(STORAGE_KEYS.PLAN, []);
-    const modifiedDays = localPlan.filter((p: any) => p.completed || p.answer);
-    if (modifiedDays.length > 0) {
-      const plansWithUser = modifiedDays.map((p: any) => ({ 
-        day: p.day, 
-        title: p.title,
-        description: p.description,
-        completed: p.completed,
-        answer: p.answer,
-        completed_at: p.completed_at, 
-        user_id: userId 
-      }));
-      await supabase.from('plans').upsert(plansWithUser);
-    }
-
-    // 3. Sync Activity Logs
-    const localLogs = safeParse(STORAGE_KEYS.ACTIVITY, []);
-    if (localLogs.length > 0) {
-       for (const log of localLogs) {
-         const { data } = await supabase.from('activity_logs')
-           .select('*')
-           .eq('user_id', userId)
-           .eq('date', log.date)
-           .maybeSingle();
-
-         if (data) {
-           await supabase.from('activity_logs').update({ count: log.count }).eq('id', data.id);
-         } else {
-           await supabase.from('activity_logs').insert({ user_id: userId, date: log.date, count: log.count });
-         }
-       }
-    }
-    
-    // 4. Sync Profile
-    const localProfile = safeParse(STORAGE_KEYS.PROFILE, null) as any;
-    if (localProfile && localProfile.id === userId) {
-      const payload = {
-         id: userId,
-         full_name: localProfile.full_name,
-         mantra: localProfile.mantra,
-         imagem: localProfile.imagem,
-         statement: localProfile.statement,
-         updated_at: new Date().toISOString()
-      };
-      const { error } = await supabase.from('profiles').upsert(payload);
-      if (error && error.message?.includes('imagem')) {
-         const { imagem, ...basicPayload } = payload;
-         await supabase.from('profiles').upsert(basicPayload);
+      // 1. Sync Tasks
+      const localTasks = safeParse<DailyTask[]>(STORAGE_KEYS.TASKS, []);
+      if (localTasks.length > 0) {
+        const tasksWithUser = localTasks.map((t) => ({ ...t, user_id: userId }));
+        await supabase.from('tasks').upsert(tasksWithUser);
       }
-    }
 
-    // 5. Sync Gratitude (Upload)
-    const localGratitude = safeParse(STORAGE_KEYS.GRATITUDE, []);
-    if (localGratitude.length > 0) {
-      const validEntries = localGratitude.filter((g: any) => g.id && g.id.length > 10);
-      const entriesWithUser = validEntries.map((g: any) => ({ ...g, user_id: userId }));
+      // 2. Sync Plan
+      const localPlan = safeParse<DayPlan[]>(STORAGE_KEYS.PLAN, []);
+      const modifiedDays = localPlan.filter((p) => p.completed || p.answer);
+      if (modifiedDays.length > 0) {
+        const plansWithUser = modifiedDays.map((p) => ({ 
+          day: p.day, 
+          title: p.title,
+          description: p.description,
+          completed: p.completed,
+          answer: p.answer,
+          completed_at: p.completed_at, 
+          user_id: userId 
+        }));
+        await supabase.from('plans').upsert(plansWithUser);
+      }
+
+      // 3. Sync Activity Logs
+      const localLogs = safeParse<ActivityLog[]>(STORAGE_KEYS.ACTIVITY, []);
+      if (localLogs.length > 0) {
+        for (const log of localLogs) {
+          const { data } = await supabase.from('activity_logs')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('date', log.date)
+            .maybeSingle();
+
+          if (data) {
+            await supabase.from('activity_logs').update({ count: log.count }).eq('id', data.id);
+          } else {
+            await supabase.from('activity_logs').insert({ user_id: userId, date: log.date, count: log.count });
+          }
+        }
+      }
       
-      if (entriesWithUser.length > 0) {
-        await supabase.from('gratitude_entries').upsert(entriesWithUser);
+      // 4. Sync Profile
+      const localProfile = safeParse(STORAGE_KEYS.PROFILE, null) as any;
+      if (localProfile && localProfile.id === userId) {
+        const payload = {
+          id: userId,
+          full_name: localProfile.full_name,
+          mantra: localProfile.mantra,
+          imagem: localProfile.imagem,
+          statement: localProfile.statement,
+          updated_at: new Date().toISOString()
+        };
+        const { error } = await supabase.from('profiles').upsert(payload);
+        if (error && error.message?.includes('imagem')) {
+          const { imagem, ...basicPayload } = payload;
+          await supabase.from('profiles').upsert(basicPayload);
+        }
       }
-    }
-    
-    // 6. Sync Goal Plans
-    const localGoals = safeParse(STORAGE_KEYS.GOAL_PLANS, []);
-    if (localGoals.length > 0) {
-       const goalsWithUser = localGoals.map((g: any) => ({ ...g, user_id: userId }));
-       await supabase.from('goal_plans').upsert(goalsWithUser);
-    }
 
-    // 7. Sync Support Tickets
-    const localTickets = safeParse(STORAGE_KEYS.SUPPORT_TICKETS, []);
-    if (localTickets.length > 0) {
-       const ticketsWithUser = localTickets.map((t: any) => ({ ...t, user_id: userId }));
-       await supabase.from('support_tickets').upsert(ticketsWithUser);
-    }
+      // 5. Sync Gratitude (Upload)
+      const localGratitude = safeParse<GratitudeEntry[]>(STORAGE_KEYS.GRATITUDE, []);
+      if (localGratitude.length > 0) {
+        const validEntries = localGratitude.filter((g) => g.id && g.id.length > 10);
+        const entriesWithUser = validEntries.map((g) => ({ ...g, user_id: userId }));
+        
+        if (entriesWithUser.length > 0) {
+          await supabase.from('gratitude_entries').upsert(entriesWithUser);
+        }
+      }
+      
+      // 6. Sync Goal Plans
+      const localGoals = safeParse<GoalPlan[]>(STORAGE_KEYS.GOAL_PLANS, []);
+      if (localGoals.length > 0) {
+        const goalsWithUser = localGoals.map((g) => ({ ...g, user_id: userId }));
+        await supabase.from('goal_plans').upsert(goalsWithUser);
+      }
 
+      // 7. Sync Support Tickets
+      const localTickets = safeParse<SupportTicket[]>(STORAGE_KEYS.SUPPORT_TICKETS, []);
+      if (localTickets.length > 0) {
+        const ticketsWithUser = localTickets.map((t) => ({ ...t, user_id: userId }));
+        await supabase.from('support_tickets').upsert(ticketsWithUser);
+      }
   } catch (e) {
     console.error("Erro na sincronização:", e);
   }

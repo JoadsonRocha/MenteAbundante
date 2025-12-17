@@ -11,15 +11,19 @@ const DB_VERSION = 1;
 
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    try {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    } catch (e) {
+      reject(e);
+    }
   });
 };
 
@@ -115,15 +119,19 @@ const VisualizationTool: React.FC = () => {
   // Carregar Declaração do Banco e Gratidão
   useEffect(() => {
     const fetchData = async () => {
-      const profile = await db.getProfile();
-      if (profile && profile.statement) {
-        setStatementText(profile.statement);
-      }
-      
-      // Busca última gratidão
-      const gratitudeHistory = await db.getGratitudeHistory();
-      if(gratitudeHistory && gratitudeHistory.length > 0) {
-        setGratitudeFocus(gratitudeHistory[0].text);
+      try {
+        const profile = await db.getProfile();
+        if (profile && profile.statement) {
+          setStatementText(profile.statement);
+        }
+        
+        // Busca última gratidão
+        const gratitudeHistory = await db.getGratitudeHistory();
+        if(gratitudeHistory && gratitudeHistory.length > 0) {
+          setGratitudeFocus(gratitudeHistory[0].text);
+        }
+      } catch (e) {
+        console.warn("Failed to fetch visualization data", e);
       }
     };
     fetchData();
@@ -173,12 +181,19 @@ const VisualizationTool: React.FC = () => {
   };
 
   const initAudioContext = () => {
-    if (!audioContextRef.current) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      audioContextRef.current = new AudioContextClass();
-    }
-    if (audioContextRef.current.state === 'suspended') {
-      audioContextRef.current.resume();
+    try {
+      if (!audioContextRef.current) {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        audioContextRef.current = new AudioContextClass();
+      }
+      if (audioContextRef.current.state === 'suspended') {
+        // Handle promise rejection to avoid "Uncaught (in promise)" when browser blocks autoplay
+        audioContextRef.current.resume().catch(e => {
+            console.warn("Audio resume pending user gesture:", e);
+        });
+      }
+    } catch (e) {
+      console.warn("AudioContext init error", e);
     }
   };
 

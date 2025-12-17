@@ -309,7 +309,10 @@ export const generateActionPlan = async (goal: string, timeframe: string, langua
       }
     });
 
-    const jsonText = response.text;
+    let jsonText = response.text || "";
+    // Sanitize: Remove ```json and ``` marks if present, to avoid JSON.parse syntax error
+    jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+
     if (!jsonText) throw new Error("Resposta vazia da IA");
     
     return JSON.parse(jsonText);
