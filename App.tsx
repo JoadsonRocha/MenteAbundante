@@ -23,116 +23,109 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { Tab } from './types';
 import { db, syncLocalDataToSupabase } from './services/database';
-import { initOneSignal } from './services/notificationService';
 
 const AppContent: React.FC = () => {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading } = useAuth();
   
-  // Inicialização do Tab baseada na URL (Hash) para suportar links diretos e refresh
+  // Inicializa o estado a partir do hash atual da URL
   const [activeTab, setActiveTab] = useState<Tab>(() => {
-    if (typeof window !== 'undefined') {
-      // 1. Prioridade: Hash da URL
-      const hash = window.location.hash.replace('#', '');
-      if (hash) return hash as Tab;
-      
-      // 2. Fallback: LocalStorage
-      const savedTab = localStorage.getItem('mente_active_tab');
-      if (savedTab === 'profile') return 'dashboard';
-      return (savedTab as Tab) || 'dashboard';
-    }
-    return 'dashboard';
+    const hash = window.location.hash.replace('#', '');
+    const validTabs: Tab[] = [
+      'dashboard', 'reprogram', 'plan', 'checklist', 'visualization', 
+      'coach', 'gratitude', 'about', 'stats', 'profile', 'feedback', 
+      'smart_planner', 'support', 'anxiety'
+    ];
+    return (validTabs.includes(hash as Tab) ? hash : 'dashboard') as Tab;
   });
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isOffline, setIsOffline] = useState(typeof navigator !== 'undefined' ? !navigator.onLine : false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [desireStatement, setDesireStatement] = useState<string | null>(null);
   const [showDesireModal, setShowDesireModal] = useState(false);
-
-  // --- NOVOS ESTADOS PARA GUEST MODE ---
   const [showLoginModal, setShowLoginModal] = useState(false);
 
-  // Lista de abas que exigem login para acessar
-  // ADICIONADO: 'anxiety' agora é protegida
   const protectedTabs: Tab[] = [
-    'coach', 
-    'reprogram', 
-    'plan', 
-    'checklist', 
-    'visualization', 
-    'gratitude', 
-    'smart_planner', 
-    'stats', 
-    'profile', 
-    'feedback', 
-    'support',
-    'anxiety'
+    'coach', 'reprogram', 'plan', 'checklist', 'visualization', 
+    'gratitude', 'smart_planner', 'stats', 'profile', 'feedback', 
+    'support', 'anxiety'
   ];
 
-  // Listener para Botão Voltar (History API / Hash Change)
+  // Helper para atualizações seguras de histórico (evita erros em sandboxes cross-origin)
+  const safeNavigate = (hash: string, replace: boolean = false) => {
+    const hashValue = hash.startsWith('#') ? hash : `#${hash}`;
+    try {
+      if (replace) {
+        window.history.replaceState(null, '', hashValue);
+      } else {
+        window.location.hash = hashValue;
+      }
+    } catch (e) {
+      // Fallback se pushState/replaceState falhar por questões de origin
+      window.location.hash = hashValue;
+    }
+  };
+
+  // Efeito principal de Sincronização de Navegação (Back/Forward)
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       if (hash && hash !== activeTab) {
-        // Se o hash mudou (ex: clicou em voltar), atualiza o estado
         setActiveTab(hash as Tab);
       } else if (!hash && activeTab !== 'dashboard') {
-        // Se voltou para raiz, assume dashboard
         setActiveTab('dashboard');
       }
     };
 
     window.addEventListener('hashchange', handleHashChange);
     
-    // Garante que a URL inicial tenha o hash correto sem adicionar entrada no histórico
-    if (!window.location.hash && activeTab) {
-       window.history.replaceState(null, '', `#${activeTab}`);
+    // Se não houver hash na URL, coloca o dashboard para iniciar o histórico
+    if (!window.location.hash) {
+      safeNavigate('dashboard', true);
     }
 
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [activeTab]);
 
-  // Função de navegação principal
   const handleTabChange = (tab: Tab) => {
-    // Se não tiver usuário E a aba for protegida
     if (!user && protectedTabs.includes(tab)) {
       setShowLoginModal(true);
       return;
     }
     
-    // Navegação normal: Atualiza Hash (Gera histórico) e State
-    window.location.hash = tab;
-    setActiveTab(tab);
-    setSidebarOpen(false); // Fecha sidebar no mobile ao navegar
+    // Alterar o hash é o que garante que o botão "Voltar" funcione
+    // Pois window.location.hash = 'xxx' cria uma nova entrada no histórico (push)
+    if (window.location.hash.replace('#', '') !== tab) {
+      safeNavigate(tab, false);
+    }
+    
+    setSidebarOpen(false);
   };
 
+  // Persistência da aba atual no LocalStorage
   useEffect(() => {
-    localStorage.setItem('mente_active_tab', activeTab);
+    try {
+      localStorage.setItem('mente_active_tab', activeTab);
+    } catch (e) {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeTab]);
 
-  // Efeito para Logout ou Tentativa de Acesso Protegido via Back Button
+  // Proteção de rotas autenticadas
   useEffect(() => {
     if (!loading && !user && protectedTabs.includes(activeTab)) {
-       // Se estiver numa aba protegida sem login (ex: após logout ou voltar histórico), redireciona
-       window.history.replaceState(null, '', '#dashboard');
+       safeNavigate('dashboard', true); // Replace para não poluir o histórico com tentativas negadas
        setActiveTab('dashboard');
        setShowLoginModal(true);
     }
   }, [user, loading, activeTab]);
 
-  // Efeito para inicialização de dados (User Dependent)
   useEffect(() => {
     if (user) {
       syncLocalDataToSupabase();
-      initOneSignal(user.id);
       db.getTasks();
       db.getPlan();
-      setShowLoginModal(false); // Fecha modal se logar
-    } else {
-      // Inicializa OneSignal mesmo sem usuário (para notificações genéricas)
-      initOneSignal(undefined);
+      setShowLoginModal(false);
     }
   }, [user?.id]);
 
@@ -154,19 +147,21 @@ const AppContent: React.FC = () => {
 
     if (user) {
       const initAppData = async () => {
-        const profile = await db.getProfile();
-        const hasShownDesire = sessionStorage.getItem('mente_desire_shown');
-        
-        if (profile?.statement && !hasShownDesire) {
-          setDesireStatement(profile.statement);
-          setShowDesireModal(true);
-          sessionStorage.setItem('mente_desire_shown', 'true');
-        }
+        try {
+          const profile = await db.getProfile();
+          const hasShownDesire = sessionStorage.getItem('mente_desire_shown');
+          
+          if (profile?.statement && !hasShownDesire) {
+            setDesireStatement(profile.statement);
+            setShowDesireModal(true);
+            sessionStorage.setItem('mente_desire_shown', 'true');
+          }
 
-        const hasSeenOnboarding = localStorage.getItem('mente_onboarding_completed');
-        if (!hasSeenOnboarding) {
-          setShowOnboarding(true);
-        }
+          const hasSeenOnboarding = localStorage.getItem('mente_onboarding_completed');
+          if (!hasSeenOnboarding) {
+            setShowOnboarding(true);
+          }
+        } catch (e) {}
       };
       initAppData();
     }
@@ -180,7 +175,9 @@ const AppContent: React.FC = () => {
 
   const handleCloseOnboarding = () => {
     setShowOnboarding(false);
-    localStorage.setItem('mente_onboarding_completed', 'true');
+    try {
+      localStorage.setItem('mente_onboarding_completed', 'true');
+    } catch (e) {}
   };
 
   const handleOpenOnboarding = () => {
@@ -190,8 +187,10 @@ const AppContent: React.FC = () => {
   const installApp = async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User response to install prompt: ${outcome}`);
+    try {
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User response: ${outcome}`);
+    } catch (e) {}
     setDeferredPrompt(null);
   };
 
@@ -202,7 +201,7 @@ const AppContent: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="animate-spin text-amber-500" size={40} />
+        <div className="initial-loader"></div>
       </div>
     );
   }
@@ -258,7 +257,6 @@ const AppContent: React.FC = () => {
       />
 
       <main className="flex-1 min-w-0 relative flex flex-col h-screen overflow-hidden">
-        {/* Offline Warning */}
         {isOffline && (
           <div className="bg-slate-800 text-white text-xs py-1 px-4 text-center flex items-center justify-center gap-2 shrink-0 z-50">
             <WifiOff size={12} />
@@ -266,27 +264,17 @@ const AppContent: React.FC = () => {
           </div>
         )}
 
-        {/* Mobile Header Minimalista */}
         <div className="lg:hidden bg-white px-5 py-3 border-b border-slate-100 flex items-center justify-between sticky top-0 z-30 shrink-0">
           <button onClick={() => handleTabChange('dashboard')} className="flex items-center gap-2">
-            <div className="flex flex-col items-start">
-              <h1 className="font-extrabold text-[#F87A14] text-lg tracking-tight leading-none">Rise Mindr</h1>
-            </div>
+            <h1 className="font-extrabold text-[#F87A14] text-lg tracking-tight leading-none">Rise Mindr</h1>
           </button>
-          
-          <div className="flex items-center gap-1">
-             {/* Header Actions Placeholder */}
-          </div>
         </div>
 
-        {/* Content Area */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 pb-32 lg:pb-8 max-w-7xl mx-auto w-full">
           {renderContent()}
         </div>
 
-        {/* --- BOTTOM NAVIGATION BAR (MOBILE ONLY) --- */}
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 px-6 py-2 pb-safe flex justify-between items-center h-[80px]">
-           
            <button 
              onClick={() => handleTabChange('dashboard')}
              className={`flex flex-col items-center gap-1 w-12 transition-colors ${isActive('dashboard') ? 'text-[#F87A14]' : 'text-slate-400'}`}
@@ -333,10 +321,7 @@ const AppContent: React.FC = () => {
            </button>
         </div>
 
-        {/* PWA Install Banner */}
         <InstallBanner installAction={installApp} deferredPrompt={deferredPrompt} />
-
-        {/* Modals */}
         <OnboardingTour isOpen={showOnboarding} onClose={handleCloseOnboarding} />
         
         {desireStatement && (
@@ -347,7 +332,6 @@ const AppContent: React.FC = () => {
           />
         )}
 
-        {/* Login Modal Overlay */}
         {showLoginModal && (
           <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex justify-center items-center p-4 animate-in fade-in duration-200">
              <div className="relative w-full max-w-md animate-in zoom-in-95 duration-200">

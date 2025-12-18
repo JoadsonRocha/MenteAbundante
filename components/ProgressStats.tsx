@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { Bell, BellOff, TrendingUp, Brain, Calendar, CheckCircle, Loader2 } from 'lucide-react';
+import { TrendingUp, Brain, Calendar, CheckCircle } from 'lucide-react';
 import { db } from '../services/database';
-import { ActivityLog, BeliefEntry } from '../types';
-import { requestNotificationPermission, isPushEnabled } from '../services/notificationService';
+import { ActivityLog } from '../types';
+// OneSignal imports removidos
 
 const ProgressStats: React.FC = () => {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [beliefCount, setBeliefCount] = useState(0);
-  const [remindersEnabled, setRemindersEnabled] = useState(false);
-  const [loadingToggle, setLoadingToggle] = useState(false);
 
   useEffect(() => {
     // Carregar dados
@@ -37,56 +35,9 @@ const ProgressStats: React.FC = () => {
       // Contagem de Crenças
       const beliefs = await db.getBeliefs();
       setBeliefCount(beliefs.length);
-      
-      // Checar status do OneSignal de forma segura
-      try {
-        const enabled = await isPushEnabled();
-        setRemindersEnabled(enabled);
-      } catch (e) {
-        console.warn("OneSignal status check failed", e);
-      }
     };
     loadData();
   }, []);
-
-  const toggleReminders = async () => {
-    setLoadingToggle(true);
-    
-    // Verificação de segurança: O OneSignal pode ser undefined ou um array [] enquanto carrega.
-    // Usamos o .push para garantir que o código só rode quando o SDK estiver pronto.
-    if (typeof window !== 'undefined' && window.OneSignal) {
-      window.OneSignal.push(async () => {
-         try {
-           if (remindersEnabled) {
-             // Desativar (Opt-out)
-             // Verificação profunda para evitar Uncaught TypeError se User for undefined
-             if (window.OneSignal.User && window.OneSignal.User.PushSubscription) {
-                await window.OneSignal.User.PushSubscription.optOut();
-                setRemindersEnabled(false);
-             }
-           } else {
-             // Ativar (Opt-in via Slidedown ou Nativo)
-             await requestNotificationPermission();
-             
-             // Verifica novamente após um breve delay para atualizar UI
-             setTimeout(async () => {
-                const enabled = await isPushEnabled();
-                setRemindersEnabled(enabled);
-                setLoadingToggle(false);
-             }, 1000); 
-             return; 
-           }
-         } catch (e) {
-           console.error("Erro ao alterar notificações", e);
-         } finally {
-           // Se não retornou antes (caso de ativar), desliga o loading aqui
-           if (remindersEnabled) setLoadingToggle(false); 
-         }
-      });
-    } else {
-      setLoadingToggle(false);
-    }
-  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-10">
@@ -160,39 +111,7 @@ const ProgressStats: React.FC = () => {
         </p>
       </div>
 
-      {/* Notifications Section */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-6 md:p-8 rounded-2xl shadow-lg text-white flex flex-col md:flex-row items-center justify-between gap-6">
-        <div>
-          <h3 className="text-xl font-bold flex items-center gap-2 mb-2">
-            <Bell size={20} className="text-amber-400" /> Notificações de Foco
-          </h3>
-          <p className="text-slate-300 text-sm max-w-md">
-            Receba lembretes diários para manter sua disciplina. A consistência é a chave para a mentalidade abundante.
-          </p>
-        </div>
-        
-        <button
-          onClick={toggleReminders}
-          disabled={loadingToggle}
-          className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 ${
-            remindersEnabled 
-              ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20' 
-              : 'bg-white/10 hover:bg-white/20 text-slate-200'
-          }`}
-        >
-          {loadingToggle ? (
-             <Loader2 size={18} className="animate-spin" />
-          ) : remindersEnabled ? (
-            <>
-              <CheckCircle size={18} /> Ativado
-            </>
-          ) : (
-            <>
-              <BellOff size={18} /> Ativar Lembretes
-            </>
-          )}
-        </button>
-      </div>
+      {/* Seção de Notificações removida (Web only) */}
 
     </div>
   );

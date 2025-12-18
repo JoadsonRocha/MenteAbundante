@@ -10,7 +10,5 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Apenas ignora e deixa a rede lidar. 
-  // Isso evita erros de "Uncaught" em domínios de preview.
   return;
 });

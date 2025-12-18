@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, STORAGE_KEYS } from '../services/database';
-import { logoutOneSignal } from '../services/notificationService';
 
 interface AuthContextType {
   user: User | null;
@@ -47,16 +46,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const { data: { session: currentSession } } = await authClient.auth.getSession();
           setSession(currentSession);
           setUser(currentUser);
-        } else if (mounted.current) {
-          // Se não houver usuário, garante que não há lixo no storage
-          // clearLocalData(); // Opcional: limpar ao iniciar se não tiver user? Melhor não, para manter dados offline de 'visitante' se for o caso.
-          // Mas se tinha token e falhou, cairá no catch.
         }
       } catch (error) {
-        // SECURITY CRITICAL: Se o token for inválido, revogado ou expirado,
-        // devemos limpar IMEDIATAMENTE os dados locais para evitar vazamento de informações
-        // de um usuário anterior numa máquina compartilhada.
-        console.warn("Sessão inválida detectada. Limpando dados locais de segurança.");
+        // Se o token for inválido, revogado ou expirado, limpamos silenciosamente.
+        // Aviso de console removido conforme solicitado.
         clearLocalData();
         
         if (mounted.current) {
@@ -76,8 +69,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
            setSession(null);
            setUser(null);
            setLoading(false);
-           // Nota: O signOut() manual já chama clearLocalData, mas o evento pode vir de outras abas.
-           // Por segurança, poderíamos limpar aqui também, mas vamos deixar o signOut gerenciar para evitar limpar dados durante refresh.
         } else if (newSession) {
            setSession(newSession);
            setUser(newSession.user);
@@ -99,9 +90,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
     }
     
-    // OneSignal Logout - Dissocia o dispositivo do usuário atual
-    await logoutOneSignal();
-
     // Limpeza completa de dados locais para garantir segurança ao sair
     clearLocalData();
     

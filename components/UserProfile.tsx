@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Mail, Save, Key, LogOut, CheckCircle, AlertCircle, Loader2, Sparkles, Camera, ScrollText, PenTool, Smartphone, CheckCircle2, Copy } from 'lucide-react';
+import { User, Mail, Save, Key, LogOut, CheckCircle2, AlertCircle, Loader2, Sparkles, Camera, ScrollText, PenTool } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { db, supabase } from '../services/database';
 import { UserProfile } from '../types';
 import PrivacyPolicyModal from './PrivacyPolicyModal';
 import { useLanguage } from '../contexts/LanguageContext';
-import { getOneSignalPlayerId } from '../services/notificationService';
+// Import do OneSignal ID removido
 
 const UserProfileComponent: React.FC = () => {
   const { t } = useLanguage();
@@ -25,9 +25,6 @@ const UserProfileComponent: React.FC = () => {
   
   // State para modal de privacidade
   const [showPrivacy, setShowPrivacy] = useState(false);
-
-  // State para Player ID
-  const [playerId, setPlayerId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -51,14 +48,7 @@ const UserProfileComponent: React.FC = () => {
         // 2. Libera a UI IMEDIATAMENTE após carregar dados do banco
         setLoading(false);
       }
-
-      // 3. Carrega OneSignal em "background" sem travar a tela
-      try {
-        const pid = await getOneSignalPlayerId();
-        setPlayerId(pid);
-      } catch (e) {
-        console.warn("OneSignal ID indisponível no momento");
-      }
+      // OneSignal ID fetch removido
     };
     
     loadProfile();
@@ -152,13 +142,6 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
       }
     } finally {
       setSaving(false);
-    }
-  };
-
-  const copyPlayerId = () => {
-    if (playerId) {
-      navigator.clipboard.writeText(playerId);
-      alert("OneSignal ID copiado! Use-o para enviar notificações de teste no painel.");
     }
   };
 
@@ -340,22 +323,7 @@ Estou seguindo um plano para acumular esse dinheiro e começo agora mesmo a colo
       </div>
 
       <div className="text-center space-y-4">
-        {playerId && (
-            <div 
-              onClick={copyPlayerId}
-              className="cursor-pointer group flex flex-col items-center justify-center p-3 rounded-lg border border-dashed border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 transition-all"
-            >
-                <p className="text-xs text-slate-400 group-hover:text-emerald-600 flex items-center gap-1 font-mono mb-1">
-                    <Smartphone size={10} /> Test ID (OneSignal):
-                </p>
-                <p className="text-[10px] text-slate-300 group-hover:text-emerald-500 break-all font-mono">
-                    {playerId}
-                </p>
-                <span className="text-[9px] text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 mt-1">
-                    <Copy size={8} /> Clique para copiar
-                </span>
-            </div>
-        )}
+        {/* OneSignal ID Display Removido */}
 
         <button
           onClick={signOut}

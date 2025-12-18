@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
       'process.env.SUPABASE_URL': JSON.stringify(env.SUPABASE_URL || ''),
       'process.env.SUPABASE_KEY': JSON.stringify(env.SUPABASE_KEY || ''),
-      'process.env.ONESIGNAL_APP_ID': JSON.stringify(env.ONESIGNAL_APP_ID || ''),
+      // OneSignal env removed
     },
   };
 });

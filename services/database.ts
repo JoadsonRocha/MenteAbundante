@@ -112,7 +112,7 @@ export const syncLocalDataToSupabase = async () => {
       }
       
       // 4. Sync Profile
-      const localProfile = safeParse(STORAGE_KEYS.PROFILE, null) as any;
+      const localProfile = safeParse<UserProfile | null>(STORAGE_KEYS.PROFILE, null) as any;
       if (localProfile && localProfile.id === userId) {
         const payload = {
           id: userId,
@@ -222,7 +222,7 @@ export const db = {
     if (saved) {
       if (navigator.onLine) syncLocalDataToSupabase(); 
       // Safe parse aqui garante que não retorne erro se o JSON for inválido
-      return safeParse(STORAGE_KEYS.TASKS, INITIAL_TASKS);
+      return safeParse<DailyTask[]>(STORAGE_KEYS.TASKS, INITIAL_TASKS);
     }
 
     if (supabase && navigator.onLine) {
@@ -262,7 +262,7 @@ export const db = {
   async setActivityCount(count: number): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
     try {
-      let logs: ActivityLog[] = safeParse(STORAGE_KEYS.ACTIVITY, []);
+      let logs: ActivityLog[] = safeParse<ActivityLog[]>(STORAGE_KEYS.ACTIVITY, []);
       const existingIndex = logs.findIndex(l => l.date === today);
       if (existingIndex >= 0) {
         logs[existingIndex].count = count;
@@ -306,7 +306,7 @@ export const db = {
 
   async getActivityLogs(): Promise<ActivityLog[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.ACTIVITY);
-    if (saved) return safeParse(STORAGE_KEYS.ACTIVITY, []);
+    if (saved) return safeParse<ActivityLog[]>(STORAGE_KEYS.ACTIVITY, []);
 
     if (supabase && navigator.onLine) {
       try {
@@ -327,9 +327,9 @@ export const db = {
   async getPlan(): Promise<DayPlan[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.PLAN);
     // Safe parse para evitar crash
-    let localData = saved ? safeParse(STORAGE_KEYS.PLAN, null) : null;
+    let localData = saved ? safeParse<DayPlan[]>(STORAGE_KEYS.PLAN, []) : null;
     
-    if (localData) {
+    if (localData && localData.length > 0) {
        if(navigator.onLine) syncLocalDataToSupabase();
        return localData as DayPlan[];
     }
@@ -370,7 +370,7 @@ export const db = {
     const userId = await getCurrentUserId();
     const saved = localStorage.getItem(STORAGE_KEYS.BELIEFS);
     
-    if (saved) return safeParse(STORAGE_KEYS.BELIEFS, []);
+    if (saved) return safeParse<BeliefEntry[]>(STORAGE_KEYS.BELIEFS, []);
     
     if (supabase && navigator.onLine && userId) {
        try {
@@ -439,7 +439,7 @@ export const db = {
   // --- CHAT ---
   async getChatHistory(): Promise<ChatMessage[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.CHAT);
-    if(saved) return safeParse(STORAGE_KEYS.CHAT, []);
+    if(saved) return safeParse<ChatMessage[]>(STORAGE_KEYS.CHAT, []);
     
     if (supabase && navigator.onLine) {
       try {
@@ -512,7 +512,7 @@ export const db = {
   // --- SMART PLANNER ---
   async getGoalPlans(): Promise<GoalPlan[]> {
     const saved = localStorage.getItem(STORAGE_KEYS.GOAL_PLANS);
-    if (saved) return safeParse(STORAGE_KEYS.GOAL_PLANS, []);
+    if (saved) return safeParse<GoalPlan[]>(STORAGE_KEYS.GOAL_PLANS, []);
 
     if (supabase && navigator.onLine) {
        const userId = await getCurrentUserId();
@@ -620,6 +620,6 @@ export const db = {
        }
     }
 
-    return saved ? safeParse(STORAGE_KEYS.SUPPORT_TICKETS, []) : [];
+    return saved ? safeParse<SupportTicket[]>(STORAGE_KEYS.SUPPORT_TICKETS, []) : [];
   }
 };

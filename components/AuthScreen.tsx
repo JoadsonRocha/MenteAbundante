@@ -40,8 +40,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onClose }) => {
           password,
         });
         if (error) throw error;
-        // Sucesso no Login - O AuthContext vai detectar a mudança e fechar o modal via App.tsx, 
-        // mas chamamos onClose para feedback imediato se necessário.
+        // Sucesso no Login
         if (onClose) onClose();
       } else {
         const { error, data } = await supabase.auth.signUp({
@@ -76,7 +75,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onClose }) => {
         redirectTo: window.location.origin,
       });
       if (error) throw error;
-      setSuccessMessage(t('auth.success_created')); // Reutilizando msg de sucesso genérica ou criar uma specifica
+      setSuccessMessage(t('auth.success_created'));
       setIsLogin(true);
       setIsRecovery(false);
     } catch (err: any) {
@@ -93,14 +92,9 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onClose }) => {
     setSuccessMessage(null);
   };
 
-  // Se não tiver onClose (é tela cheia), usa min-h-screen. Se tiver (modal), usa h-auto.
   const containerClass = onClose 
     ? "w-full bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 relative z-10"
     : "w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/50 overflow-hidden border border-slate-100 animate-fade-in relative z-10";
-
-  const wrapperClass = onClose
-    ? "w-full"
-    : "min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4";
 
   const content = (
       <div className={containerClass}>
@@ -109,7 +103,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onClose }) => {
         <div className="bg-slate-900 p-8 text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#F87A14] rounded-full blur-[60px] opacity-20 transform translate-x-1/2 -translate-y-1/2"></div>
           
-          {/* Language Switcher - Posicionado à esquerda (oposto ao botão de fechar que fica à direita no modal) */}
           <div className="absolute top-6 left-6 z-20">
              <LanguageSwitcher compact />
           </div>
@@ -152,7 +145,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onClose }) => {
         {/* Form Body */}
         <div className="p-8">
           {isRecovery ? (
-            // Recovery Form
             <form onSubmit={handleRecovery} className="space-y-6">
               <div className="text-center mb-6">
                 <h3 className="text-lg font-bold text-slate-800">{t('auth.recover_title')}</h3>
@@ -202,7 +194,6 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onClose }) => {
               </button>
             </form>
           ) : (
-            // Auth Form (Login/Register)
             <form onSubmit={handleAuth} className="space-y-5">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{t('auth.email_label')}</label>
@@ -220,18 +211,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onClose }) => {
               </div>
 
               <div className="space-y-2">
-                <div className="flex justify-between items-center px-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('auth.password_label')}</label>
-                  {isLogin && (
-                    <button 
-                      type="button" 
-                      onClick={() => setIsRecovery(true)}
-                      className="text-xs font-bold text-[#F87A14] hover:underline"
-                    >
-                      {t('auth.forgot_password')}
-                    </button>
-                  )}
-                </div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{t('auth.password_label')}</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-3.5 text-slate-400 z-10" size={18} />
                   <input
@@ -244,6 +224,17 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onClose }) => {
                     placeholder="••••••••"
                   />
                 </div>
+                {isLogin && (
+                  <div className="flex justify-end pr-1">
+                    <button 
+                      type="button" 
+                      onClick={() => setIsRecovery(true)}
+                      className="text-xs font-bold text-[#F87A14] hover:underline transition-all"
+                    >
+                      {t('auth.forgot_password')}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {error && (
@@ -290,9 +281,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onClose }) => {
       </div>
   );
 
-  if (onClose) {
-    return content;
-  }
+  if (onClose) return content;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4">
