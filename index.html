@@ -2,49 +2,59 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Rise Mindr</title>
     
-    <!-- PWA Configuration -->
+    <!-- PWA / Capacitor Optimization -->
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#EA580C">
-    <!-- Padrão moderno Android/Chrome -->
     <meta name="mobile-web-app-capable" content="yes">
-    <!-- Legado iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Rise Mindr">
-    <meta name="description" content="Sua ferramenta diária para reprogramação mental e abundância com Rise Mindr.">
     
-    <!-- Custom SVG Favicon -->
     <link rel="icon" type="image/svg+xml" href="/logo.svg">
     <link rel="apple-touch-icon" href="/MindShift_192.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+      :root {
+        --sat: env(safe-area-inset-top);
+        --sar: env(safe-area-inset-right);
+        --sab: env(safe-area-inset-bottom);
+        --sal: env(safe-area-inset-left);
+      }
+      
       body {
         font-family: 'Inter', sans-serif;
         background-color: #f8fafc;
         margin: 0;
         padding: 0;
-      }
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar {
-        width: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #f1f1f1; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #cbd5e1; 
-        border-radius: 4px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8; 
+        overflow-x: hidden;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+        overscroll-behavior-y: none;
+        height: 100%;
+        width: 100%;
       }
 
-      /* Initial Loading Spinner Styles (Inline critical CSS) */
+      .pt-safe {
+        padding-top: var(--sat);
+      }
+      
+      .pb-safe {
+        padding-bottom: var(--sab);
+      }
+
+      /* Native scroll feel */
+      .custom-scrollbar {
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      ::-webkit-scrollbar {
+        display: none;
+      }
+
       #root:empty {
         display: flex;
         justify-content: center;
@@ -58,8 +68,6 @@
         border: 4px solid #e2e8f0;
         border-bottom-color: #EA580C;
         border-radius: 50%;
-        display: inline-block;
-        box-sizing: border-box;
         animation: rotation 1s linear infinite;
       }
       @keyframes rotation {
@@ -67,38 +75,25 @@
         100% { transform: rotate(360deg); }
       }
     </style>
-    <script>
-      // Prevent "process is not defined" errors in environments where it's not injected
-      window.process = window.process || { env: {} };
-      
-      // Global error listener to help catch and log early "Uncaught" errors
-      window.addEventListener('error', function(event) {
-        console.error('Global error caught:', event.error || event.message);
-      });
-      window.addEventListener('unhandledrejection', function(event) {
-        console.error('Unhandled promise rejection:', event.reason);
-      });
-    </script>
   <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "vite": "https://aistudiocdn.com/vite@^7.2.4",
-    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.86.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "recharts": "https://aistudiocdn.com/recharts@^2.15.0"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "recharts": "https://esm.sh/recharts@^3.6.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "@capacitor/cli": "https://esm.sh/@capacitor/cli@^8.0.0"
   }
 }
 </script>
-
 <link rel="stylesheet" href="/index.css">
 </head>
   <body>
-    <!-- Initial Loader visível antes do React montar -->
     <div id="root">
       <div class="initial-loader"></div>
     </div>

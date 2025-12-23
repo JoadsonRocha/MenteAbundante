@@ -73,8 +73,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
     : "Fazer Login para salvar dados";
 
   const handleProfileClick = () => {
-    // Se for visitante, o App.tsx intercepta 'profile' e mostra o login.
-    // Se for usuário, vai para o perfil.
     setActiveTab('profile');
     if (window.innerWidth < 1024) toggleSidebar();
   };
@@ -90,21 +88,21 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
       )}
 
       {/* Sidebar Container */}
-      <div className={`fixed lg:sticky top-0 h-screen bg-white w-64 z-50 transition-transform duration-300 ease-in-out flex flex-col 
+      <div className={`fixed lg:sticky top-0 h-screen bg-white w-72 z-50 transition-transform duration-300 ease-in-out flex flex-col 
         right-0 lg:right-auto lg:left-0 
         border-l lg:border-l-0 lg:border-r border-slate-200
         ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`}>
         
-        <div className="p-6 flex items-center justify-center shrink-0 relative">
+        <div className="p-8 flex items-center justify-center shrink-0 relative pt-24">
           {/* Logo Nova */}
-          <Logo size={56} />
+          <Logo size={64} />
           
-          <button onClick={toggleSidebar} className="absolute left-6 lg:hidden text-slate-400 hover:text-[#F87A14] transition-colors">
-            <X size={24} />
+          <button onClick={toggleSidebar} className="absolute left-6 lg:hidden text-slate-400 hover:text-[#F87A14] transition-colors top-24">
+            <X size={28} />
           </button>
         </div>
 
-        <nav className="px-4 py-2 space-y-1.5 flex-1 overflow-y-auto custom-scrollbar">
+        <nav className="px-5 py-4 space-y-2 flex-1 overflow-y-auto custom-scrollbar">
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -112,10 +110,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
                 setActiveTab(item.id);
                 if (window.innerWidth < 1024) toggleSidebar();
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium duration-300 ${
+              className={`w-full flex items-center gap-3.5 px-5 py-3.5 rounded-2xl transition-all font-semibold duration-300 ${
                 activeTab === item.id 
-                  ? 'bg-gradient-to-r from-[#F87A14] to-orange-500 text-white shadow-lg shadow-orange-200 scale-[1.02]' 
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 hover:pl-5'
+                  ? 'bg-gradient-to-r from-[#F87A14] to-orange-500 text-white shadow-lg shadow-orange-200/50 scale-[1.02]' 
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 hover:pl-6'
               }`}
             >
               {item.icon}
@@ -123,11 +121,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
             </button>
           ))}
 
-          {/* Botão de Instalação PWA (Visível apenas se disponível) */}
           {installApp && (
             <button
               onClick={installApp}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium duration-300 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 hover:pl-5 mt-4 border border-dashed border-emerald-200"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium duration-300 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 mt-6 border border-dashed border-emerald-200"
             >
               <Download size={20} className="text-emerald-500" />
               <span>{t('menu.install')}</span>
@@ -135,7 +132,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
           )}
         </nav>
 
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0 space-y-3">
+        {/* Rodapé da Sidebar - pb-32 para evitar botões de navegação nativos do Android */}
+        <div className="p-6 pb-32 border-t border-slate-100 bg-slate-50/50 shrink-0 space-y-4 pb-safe pt-safe">
           
           {/* Language Switcher */}
           <div className="flex justify-center pb-2">
@@ -144,29 +142,29 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, togg
 
           <button 
             onClick={handleProfileClick}
-            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left group border ${activeTab === 'profile' ? 'bg-white border-orange-200 ring-2 ring-orange-100 shadow-md' : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200 hover:shadow-sm'}`}
+            className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all text-left group border ${activeTab === 'profile' ? 'bg-white border-orange-200 ring-4 ring-orange-50 shadow-md' : 'bg-transparent border-transparent hover:bg-white hover:border-slate-200 hover:shadow-sm'}`}
           >
-             <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden shrink-0 border-2 border-white shadow-sm relative">
+             <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden shrink-0 border-2 border-white shadow-sm relative">
                 {user && avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-sm font-bold text-slate-600">
-                    {user ? displayInitial : <UserCircle size={24} className="text-slate-400" />}
+                  <span className="text-base font-bold text-slate-600">
+                    {user ? displayInitial : <UserCircle size={28} className="text-slate-400" />}
                   </span>
                 )}
                 {user && (
-                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                     <Settings size={14} className="text-white" />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                     <Settings size={16} className="text-white" />
                   </div>
                 )}
              </div>
              <div className="flex-1 overflow-hidden">
-                <p className="text-sm font-bold text-slate-700 truncate group-hover:text-[#F87A14] transition-colors" title={displayName || ''}>
+                <p className="text-sm font-black text-slate-800 truncate group-hover:text-[#F87A14] transition-colors" title={displayName || ''}>
                   {displayName}
                 </p>
-                <p className={`text-[10px] truncate ${hasMantra && user ? 'text-[#F87A14] font-medium italic' : 'text-slate-400'}`} title={displayMantra}>
+                <p className={`text-[11px] truncate mt-0.5 ${hasMantra && user ? 'text-[#F87A14] font-semibold italic' : 'text-slate-400 font-medium'}`} title={displayMantra}>
                   {hasMantra && user ? `"${displayMantra}"` : (
-                    <span className="flex items-center gap-1 text-emerald-600 font-bold"><LogIn size={10} /> Entrar</span>
+                    <span className="flex items-center gap-1.5 text-emerald-600 font-bold"><LogIn size={12} /> Entrar</span>
                   )}
                 </p>
              </div>

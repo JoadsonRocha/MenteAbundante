@@ -44,6 +44,7 @@ const translations = {
     "menu.about": "Sobre",
     "menu.logout": "Sair da conta",
     "menu.install": "Instalar App",
+    "menu.more": "Menu",
 
     // Dashboard
     "dash.hero_title": "MENTE ABUNDANTE",
@@ -120,7 +121,7 @@ const translations = {
     "about.title": "Sobre o Rise Mindr",
     "about.subtitle": "Uma ferramenta digital para despertar seu potencial, reprogramar crenças e construir uma mentalidade vencedora.",
     "about.inspiration_title": "Inspiração",
-    "about.inspiration_desc": "Este aplicativo é baseado em princípios fundamentais de sucesso e alta performance. Acreditamos que a verdadeira vitória começa silenciosamente, dentro da mente, antes de se manifestar no mundo real.",
+    "about.inspiration_desc": "Este aplicativo é baseado em princípios fundamentais de sucesso e alta performance. Acreditamos que a verdadeira vitória começa silenciosamente, dentro de a mente, antes de se manifestar no mundo real.",
     "about.mindset_title": "O Poder da Transformação",
     "about.mindset_desc": "Muitos acreditam que vencer depende apenas de sorte ou talento, mas os campeões sabem que tudo começa com a mentalidade correta. Se sua mente acredita que você não pode, ela sabota seus esforços antes mesmo de começar.",
     "about.quote": "\"Você nunca vencerá por fora sem antes vencer por dentro.\"",
@@ -170,6 +171,7 @@ const translations = {
     "menu.about": "About",
     "menu.logout": "Logout",
     "menu.install": "Install App",
+    "menu.more": "Menu",
 
     // Dashboard
     "dash.hero_title": "ABUNDANT MIND",
@@ -296,6 +298,7 @@ const translations = {
     "menu.about": "Acerca de",
     "menu.logout": "Cerrar Sesión",
     "menu.install": "Instalar App",
+    "menu.more": "Menú",
 
     // Dashboard
     "dash.hero_title": "MENTE ABUNDANTE",
@@ -313,7 +316,7 @@ const translations = {
 
     // Planner
     "planner.title": "Planificador IA",
-    "planner.subtitle": "Define un objetivo y un plazo. Nuestra IA creará una hoja de ruta paso a paso para que llegues allí.",
+    "planner.subtitle": "Define un objetivo y un plazo. Nuestra IA creará una hoja de ruta paso a passo para que llegues allí.",
     "planner.label_goal": "Tu Objetivo",
     "planner.placeholder_goal": "Ej: Aprender inglés básico, Iniciar un negocio...",
     "planner.label_time": "Plazo",
@@ -324,7 +327,7 @@ const translations = {
     // Reprogrammer
     "reprogram.title": "Reprogramación Mental",
     "reprogram.subtitle": "Identifica bloqueos y usa la IA para aplicar el método 'Pensar, Sentir, Resignificar'.",
-    "reprogram.label_block": "Identificar Bloqueo",
+    "reprogram.label_block": "Identifica Bloqueo",
     "reprogram.placeholder_block": "¿Qué te dice tu mente que no puedes hacer? Ej: 'No tengo suerte'...",
     "reprogram.btn_analyze": "Resignificar Ahora",
     "reprogram.result_label": "Nueva Programación Sugerida:",
@@ -373,14 +376,14 @@ const translations = {
     "about.subtitle": "Una herramienta digital para despertar tu potencial, reprogramar creencias y construir una mentalidad ganadora.",
     "about.inspiration_title": "Inspiración",
     "about.inspiration_desc": "Esta aplicación se basa en principios fundamentales de éxito y alto rendimiento. Creemos que la verdadera victoria comienza silenciosamente, dentro de la mente, antes de manifestarse en el mundo real.",
-    "about.mindset_title": "El Poder de la Transformación",
+    "about.mindset_title": "El Poder de la Transformação",
     "about.mindset_desc": "Muchos creen que ganar depende solo de la suerte o el talento, pero los campeones saben que todo comienza con la mentalidad correcta. Si tu mente cree que no puedes, sabotea tus esfuerzos antes de empezar.",
     "about.quote": "\"Nunca ganarás por fuera sin antes ganar por dentro.\"",
-    "about.fixed_title": "Mentalidad Fija",
+    "about.fixed_title": "Mentalidade Fija",
     "about.fixed_desc": "Cree que las habilidades son inmutables. Evita desafíos por miedo a fallar.",
-    "about.growth_title": "Mentalidad de Crecimiento",
+    "about.growth_title": "Mentalidade de Crecimiento",
     "about.growth_desc": "Entiende que el esfuerzo genera evolución. Ve los fallos como aprendizaje.",
-    "about.abundant_title": "Mentalidad Abundante",
+    "about.abundant_title": "Mentalidade Abundante",
     "about.abundant_desc": "No compite, crea. Entiende que hay espacio para que todos ganen.",
     "about.purpose_title": "Nuestro Propósito",
     "about.purpose_desc": "Creamos Rise Mindr para ser tu compañero diario de evolución, uniendo sabiduría ancestral con tecnología de Inteligencia Artificial.",

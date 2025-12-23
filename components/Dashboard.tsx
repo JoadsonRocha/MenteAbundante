@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { Target, Brain, Trophy, MessageSquareText, Calendar, Heart, Rocket, Wind, AlertCircle } from 'lucide-react';
+import { Brain, Trophy, MessageSquareText, Calendar, Heart, Rocket, Wind, Sparkles, ChevronRight } from 'lucide-react';
 import { QUOTES } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
+import Logo from './Logo';
 
 interface DashboardProps {
   onChangeTab: (tab: any) => void;
@@ -11,143 +12,102 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ onChangeTab, onOpenAnxiety }) => {
   const { t } = useLanguage();
   
-  // CORREÇÃO: Usa useMemo para garantir que a frase só seja escolhida UMA VEZ quando o componente monta,
-  // evitando que fique trocando a cada renderização ou atualização de estado.
   const randomQuote = useMemo(() => {
     return QUOTES[Math.floor(Math.random() * QUOTES.length)];
   }, []);
 
-  const handleAnxietyClick = () => {
-     onChangeTab('anxiety');
+  const features = [
+    { id: 'coach', title: t('menu.coach'), desc: t('dash.card_coach_desc'), icon: MessageSquareText, color: 'blue' },
+    { id: 'reprogram', title: t('menu.reprogram'), desc: t('dash.card_reprogram_desc'), icon: Brain, color: 'emerald' },
+    { id: 'smart_planner', title: t('menu.planner'), desc: t('dash.card_planner_desc'), icon: Rocket, color: 'rose' },
+    { id: 'anxiety', title: t('menu.anxiety'), desc: t('dash.card_anxiety_desc'), icon: Wind, color: 'slate', tag: t('dash.new_tag') },
+    { id: 'plan', title: t('menu.plan7'), desc: t('dash.card_plan7_desc'), icon: Calendar, color: 'purple' },
+    { id: 'checklist', title: t('menu.checklist'), desc: t('dash.card_checklist_desc'), icon: Trophy, color: 'amber' },
+  ];
+
+  const getColorClasses = (color: string) => {
+    switch (color) {
+      case 'blue': return 'bg-blue-50/50 text-blue-600 border-blue-100';
+      case 'emerald': return 'bg-emerald-50/50 text-emerald-600 border-emerald-100';
+      case 'rose': return 'bg-rose-50/50 text-rose-600 border-rose-100';
+      case 'slate': return 'bg-slate-100/50 text-slate-600 border-slate-200';
+      case 'purple': return 'bg-purple-50/50 text-purple-600 border-purple-100';
+      case 'amber': return 'bg-amber-50/50 text-amber-600 border-amber-100';
+      default: return 'bg-slate-50 text-slate-600 border-slate-100';
+    }
   };
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-6 pb-24">
       
-      {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-slate-900 to-slate-800 text-white p-6 md:p-12 rounded-3xl overflow-hidden shadow-xl">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-[#F87A14] rounded-full blur-[80px] opacity-20 transform translate-x-1/2 -translate-y-1/2"></div>
+      {/* Hero Section Nativa */}
+      <div className="relative overflow-hidden rounded-[2rem] bg-slate-900 shadow-2xl shadow-slate-300">
+        {/* Mesh Gradient Effect */}
+        <div className="absolute inset-0 opacity-40">
+          <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-[#F87A14] rounded-full blur-[80px] animate-pulse"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-orange-600 rounded-full blur-[80px]"></div>
+        </div>
         
-        <div className="relative z-10 max-w-2xl">
-          <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-3 md:mb-4 tracking-tight leading-tight">
-            {t('dash.hero_title')} <br/> <span className="text-[#F87A14]">{t('dash.hero_title_span')}</span>
+        <div className="relative z-10 p-8 md:p-12">
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 mb-6">
+            <Logo size={14} />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/80">Rise Mindr Elite</span>
+          </div>
+          
+          <h1 className="text-3xl md:text-5xl font-black text-white leading-[1.1] mb-4">
+            {t('dash.hero_title')} <br/> 
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-300">
+              {t('dash.hero_title_span')}
+            </span>
           </h1>
-          <p className="text-slate-300 text-sm md:text-lg leading-relaxed max-w-lg md:max-w-none">
+          <p className="text-slate-300 text-sm md:text-lg max-w-sm leading-relaxed font-medium">
             {t('dash.hero_desc')}
           </p>
         </div>
       </div>
 
-      {/* Features Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        
-        {/* 1. AI Coach */}
-        <div 
-          onClick={() => onChangeTab('coach')}
-          className="bg-blue-50 p-5 md:p-6 rounded-2xl border border-blue-100 cursor-pointer hover:shadow-md transition-all group"
-        >
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
-            <MessageSquareText size={20} className="md:w-6 md:h-6" />
-          </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('menu.coach')}</h3>
-          <p className="text-slate-600 text-xs md:text-sm">{t('dash.card_coach_desc')}</p>
-        </div>
-
-        {/* 2. Reprogramação */}
-        <div 
-          onClick={() => onChangeTab('reprogram')}
-          className="bg-emerald-50 p-5 md:p-6 rounded-2xl border border-emerald-100 cursor-pointer hover:shadow-md transition-all group"
-        >
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
-            <Brain size={20} className="md:w-6 md:h-6" />
-          </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('menu.reprogram')}</h3>
-          <p className="text-slate-600 text-xs md:text-sm">{t('dash.card_reprogram_desc')}</p>
-        </div>
-
-        {/* 3. Planejador IA */}
-        <div 
-          onClick={() => onChangeTab('smart_planner')}
-          className="bg-rose-50 p-5 md:p-6 rounded-2xl border border-rose-100 cursor-pointer hover:shadow-md transition-all group"
-        >
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
-            <Rocket size={20} className="md:w-6 md:h-6" />
-          </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('menu.planner')}</h3>
-          <p className="text-slate-600 text-xs md:text-sm">{t('dash.card_planner_desc')}</p>
-        </div>
-        
-        {/* 4. Ansiedade SOS */}
-        <div 
-          onClick={handleAnxietyClick}
-          className="bg-slate-100 p-5 md:p-6 rounded-2xl border border-slate-200 cursor-pointer hover:shadow-md hover:bg-slate-200 transition-all group"
-        >
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-200 text-slate-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
-            <Wind size={20} className="md:w-6 md:h-6" />
-          </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2 flex items-center gap-2">
-            {t('menu.anxiety')} <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded uppercase tracking-wider">{t('dash.new_tag')}</span>
-          </h3>
-          <p className="text-slate-600 text-xs md:text-sm">{t('dash.card_anxiety_desc')}</p>
-        </div>
-
-        {/* 5. Plano 7 Dias */}
-        <div 
-          onClick={() => onChangeTab('plan')}
-          className="bg-purple-50 p-5 md:p-6 rounded-2xl border border-purple-100 cursor-pointer hover:shadow-md transition-all group"
-        >
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
-            <Calendar size={20} className="md:w-6 md:h-6" />
-          </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('menu.plan7')}</h3>
-          <p className="text-slate-600 text-xs md:text-sm">{t('dash.card_plan7_desc')}</p>
-        </div>
-
-        {/* 6. Checklist Diário */}
-        <div 
-          onClick={() => onChangeTab('checklist')}
-          className="bg-amber-50 p-5 md:p-6 rounded-2xl border border-amber-100 cursor-pointer hover:shadow-md transition-all group"
-        >
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
-            <Trophy size={20} className="md:w-6 md:h-6" />
-          </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('menu.checklist')}</h3>
-          <p className="text-slate-600 text-xs md:text-sm">{t('dash.card_checklist_desc')}</p>
-        </div>
-
-        {/* 7. Visualização */}
-        <div 
-          onClick={() => onChangeTab('visualization')}
-          className="bg-indigo-50 p-5 md:p-6 rounded-2xl border border-indigo-100 cursor-pointer hover:shadow-md transition-all group"
-        >
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
-            <Target size={20} className="md:w-6 md:h-6" />
-          </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('menu.visualization')}</h3>
-          <p className="text-slate-600 text-xs md:text-sm">{t('dash.card_visual_desc')}</p>
-        </div>
-
-        {/* 8. Gratidão */}
-        <div 
-          onClick={() => onChangeTab('gratitude')}
-          className="bg-sky-50 p-5 md:p-6 rounded-2xl border border-sky-100 cursor-pointer hover:shadow-md transition-all group"
-        >
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-sky-100 text-sky-600 rounded-xl flex items-center justify-center mb-3 md:mb-4 group-hover:scale-110 transition-transform">
-            <Heart size={20} className="md:w-6 md:h-6" />
-          </div>
-          <h3 className="text-base md:text-lg font-bold text-slate-800 mb-1 md:mb-2">{t('menu.gratitude')}</h3>
-          <p className="text-slate-600 text-xs md:text-sm">{t('dash.card_gratitude_desc')}</p>
-        </div>
-
+      {/* Grid de Ferramentas - Visual de Apps Natividade */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {features.map((item) => (
+          <button 
+            key={item.id}
+            onClick={() => item.id === 'anxiety' ? onOpenAnxiety() : onChangeTab(item.id)}
+            className="group relative flex items-center gap-4 bg-white p-5 rounded-[1.5rem] border border-slate-100 shadow-sm active:scale-95 transition-all duration-200 text-left overflow-hidden"
+          >
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border transition-transform group-hover:scale-110 ${getColorClasses(item.color)}`}>
+              <item.icon size={28} strokeWidth={1.5} />
+            </div>
+            
+            <div className="flex-1 min-w-0 pr-4">
+              <div className="flex items-center gap-2 mb-0.5">
+                <h3 className="font-bold text-slate-800 text-base md:text-lg truncate">{item.title}</h3>
+                {item.tag && (
+                  <span className="text-[9px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">
+                    {item.tag}
+                  </span>
+                )}
+              </div>
+              <p className="text-slate-400 text-xs line-clamp-2 leading-tight font-medium">
+                {item.desc}
+              </p>
+            </div>
+            
+            <ChevronRight size={18} className="text-slate-300 shrink-0" />
+          </button>
+        ))}
       </div>
 
-      {/* Quote Card */}
-      <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-100 text-center">
-        <div className="text-3xl md:text-4xl text-amber-300 mb-3 md:mb-4 font-serif">"</div>
-        <p className="text-lg md:text-2xl font-medium text-slate-800 italic leading-relaxed">
+      {/* Quote Card Nativo */}
+      <div className="relative bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm text-center overflow-hidden">
+        <div className="absolute top-0 left-0 w-2 h-full bg-[#F87A14]"></div>
+        <div className="text-4xl text-slate-100 mb-2 font-serif absolute top-4 left-6 opacity-50">"</div>
+        <p className="text-lg font-bold text-slate-700 italic leading-relaxed relative z-10 px-4">
           {randomQuote}
         </p>
-        <div className="mt-4 w-10 md:w-12 h-1 bg-[#F87A14] mx-auto rounded-full"></div>
+        <div className="mt-6 flex justify-center gap-1">
+          <div className="w-8 h-1.5 bg-[#F87A14] rounded-full"></div>
+          <div className="w-2 h-1.5 bg-slate-200 rounded-full"></div>
+        </div>
       </div>
     </div>
   );
